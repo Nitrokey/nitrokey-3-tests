@@ -1,0 +1,10 @@
+# Copyright (C) 2022 Nitrokey GmbH
+# SPDX-License-Identifier: CC0-1.0
+
+[project]
+name = "nitrokey-3-tests"
+version = "0.1.0"
+
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"

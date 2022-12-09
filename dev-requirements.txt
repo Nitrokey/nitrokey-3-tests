@@ -1,0 +1,6 @@
+# Copyright (C) 2022 Nitrokey GmbH
+# SPDX-License-Identifier: CC0-1.0
+
+flake8 >=6,<7
+mypy ==0.991
+reuse >=1,<2
