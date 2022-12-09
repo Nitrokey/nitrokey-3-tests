@@ -7,7 +7,7 @@ SPDX-License-Identifier: CC0-1.0
 
 ## Quickstart
 
-To be able to run the tests using usbip simulation, copy the `usbip-runner` binary from the `nitrokey-3-firmware` repository to this directory ([PR](https://github.com/Nitrokey/nitrokey-3-firmware/pull/135)).
+To be able to run the tests using usbip simulation, copy the `usbip-runner` binary from the `nitrokey-3-firmware` repository to this directory ([PR](https://github.com/Nitrokey/nitrokey-3-firmware/pull/135)) and make sure that the `vhci-hcd` kernel module is loaded.
 
 - Lint the test code and run all tests in a docker container:
   ```

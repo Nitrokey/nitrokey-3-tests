@@ -3,10 +3,15 @@
 
 import logging
 import os
+import random
+import subprocess
+import time
 from abc import ABC, abstractmethod
 from fido2.hid import open_device
 from pytest import FixtureRequest, Parser, fixture
-from typing import Generator, List, Optional
+from subprocess import Popen
+from tempfile import TemporaryDirectory
+from typing import Any, Generator, List, Optional
 
 
 logger = logging.getLogger(__name__)
@@ -24,6 +29,70 @@ class Device(ABC):
         pass
 
 
+class UsbipDevice(Device):
+    def __init__(self, hidraw: str, serial: str, runner: Popen[bytes]):
+        self._hidraw = hidraw
+        self._serial = serial
+        self._runner = runner
+
+    @property
+    def hidraw(self) -> str:
+        return self._hidraw
+
+    @property
+    def serial(self) -> str:
+        return self._serial
+
+    def __enter__(self) -> "UsbipDevice":
+        return self
+
+    def __exit__(self, type: Any, value: Any, traceback: Any) -> None:
+        if self._runner:
+            self._runner.terminate()
+
+    @staticmethod
+    def spawn(ifs: str) -> "UsbipDevice":
+        mods = subprocess.check_output(["lsmod"], encoding="utf-8")
+        mod_lines = mods.splitlines()
+        if not any([line.startswith("vhci_hcd") for line in mod_lines]):
+            raise RuntimeError(
+                "vhci-hcd kernel module missing -- please run "
+                "`modprobe vhci-hcd`"
+            )
+
+        serial = random.randbytes(16).hex().upper()
+        runner = Popen(
+            ["./usbip-runner", "--state-file", ifs, "--serial", "0x" + serial],
+            env={"RUST_LOG": "info"},
+        )
+        logger.debug(
+            f"usbip-runner spawned: pid={runner.pid}, ifs={ifs}, "
+            f"serial={serial})"
+        )
+
+        host = "localhost"
+        subprocess.check_call(["usbip", "list", "-r", host])
+        subprocess.check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
+        subprocess.check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
+
+        for i in range(5):
+            if not find_devices(0x20a0, 0x42b2):
+                time.sleep(1)
+            else:
+                break
+        hidraw = find_device(0x20a0, 0x42b2)
+
+        for i in range(5):
+            if not os.path.exists(f"/dev/{hidraw}"):
+                time.sleep(1)
+            else:
+                break
+        if not os.path.exists(f"/dev/{hidraw}"):
+            raise RuntimeError(f"hidraw device {hidraw} does not show up")
+
+        return UsbipDevice(hidraw, serial, runner)
+
+
 class UsbDevice(Device):
     def __init__(self, hidraw: str, serial: str) -> None:
         self._hidraw = hidraw
@@ -39,10 +108,7 @@ class UsbDevice(Device):
 
     @staticmethod
     def find(serial: str) -> "UsbDevice":
-        devices = find_devices(0x20a0, 0x42b2)
-        if len(devices) > 1:
-            raise RuntimeError(f"{len(devices)} devices connected: {devices}")
-        device = devices[0]
+        device = find_device(0x20a0, 0x42b2)
         device_serial = get_serial(device)
         if int(serial, 16) != int(device_serial, 16):
             raise RuntimeError(
@@ -89,6 +155,13 @@ def find_devices(vid: int, pid: int) -> List[str]:
     return devices
 
 
+def find_device(vid: int, pid: int) -> str:
+    devices = find_devices(vid, pid)
+    if len(devices) > 1:
+        raise RuntimeError(f"{len(devices)} devices connected: {devices}")
+    return devices[0]
+
+
 def get_serial(device: str) -> str:
     ctaphid_device = open_device(f"/dev/{device}")
     serial = ctaphid_device.call(0x62)
@@ -107,4 +180,7 @@ def device(request: FixtureRequest) -> Generator[Device, None, None]:
     if serial:
         yield UsbDevice.find(serial)
     else:
-        raise RuntimeError("usbip not supported yet")
+        with TemporaryDirectory() as d:
+            ifs = os.path.join(d, "ifs.bin")
+            with UsbipDevice.spawn(ifs) as device:
+                yield device
