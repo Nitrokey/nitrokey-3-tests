@@ -1,9 +1,2 @@
 # Copyright (C) 2022 Nitrokey GmbH
 # SPDX-License-Identifier: CC0-1.0
-
-__pycache__
-data
-state
-usbip-provisioner
-usbip-runner
-venv

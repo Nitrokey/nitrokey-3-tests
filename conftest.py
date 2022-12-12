@@ -3,14 +3,16 @@
 
 import logging
 import os
+import os.path
 import random
 import subprocess
 import time
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from fido2.hid import open_device
 from pytest import FixtureRequest, Parser, fixture
 from subprocess import Popen
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, mkdtemp
 from typing import Any, Generator, List, Optional
 
 
@@ -182,7 +184,29 @@ def get_serial(device: str) -> str:
     return serial.hex().upper()
 
 
+@contextmanager
+def spawn_device(ifs: str) -> Generator[Device, None, None]:
+    with UsbipDevice.spawn("./usbip-provisioner", ifs) as device:
+        device.provision()
+    with UsbipDevice.spawn("./usbip-runner", ifs) as device:
+        yield device
+
+
+@contextmanager
+def state_dir(keep_state: bool) -> Generator[str, None, None]:
+    if keep_state:
+        if not os.path.exists("./state"):
+            os.mkdir("./state")
+        yield mkdtemp(dir="./state")
+    else:
+        with TemporaryDirectory() as d:
+            yield d
+
+
 def pytest_addoption(parser: Parser) -> None:
+    parser.addoption(
+        "--keep-state", action="store_true",
+    )
     parser.addoption(
         "--use-usb-device", action="store",
     )
@@ -194,9 +218,8 @@ def device(request: FixtureRequest) -> Generator[Device, None, None]:
     if serial:
         yield UsbDevice.find(serial)
     else:
-        with TemporaryDirectory() as d:
-            ifs = os.path.join(d, "ifs.bin")
-            with UsbipDevice.spawn("./usbip-provisioner", ifs) as device:
-                device.provision()
-            with UsbipDevice.spawn("./usbip-runner", ifs) as device:
+        keep_state = request.config.getoption("--keep-state")
+        with state_dir(keep_state) as s:
+            ifs = os.path.join(s, "ifs.bin")
+            with spawn_device(ifs) as device:
                 yield device

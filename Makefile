@@ -10,8 +10,8 @@ all: check run-docker
 
 .PHONY: check
 check: venv
-	"$(VENV)"/bin/flake8 *.py
-	"$(VENV)"/bin/mypy --strict conftest.py
+	"$(VENV)"/bin/flake8 *.py **/*.py
+	"$(VENV)"/bin/mypy --strict conftest.py utils
 	"$(VENV)"/bin/reuse lint
 
 .PHONY: run
