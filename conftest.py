@@ -3,6 +3,7 @@
 
 import logging
 import os
+import os.path
 import random
 import subprocess
 import time
@@ -10,7 +11,7 @@ from abc import ABC, abstractmethod
 from fido2.hid import open_device
 from pytest import FixtureRequest, Parser, fixture
 from subprocess import Popen
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, mkdtemp
 from typing import Any, Generator, List, Optional
 
 
@@ -62,7 +63,17 @@ class UsbipDevice(Device):
 
         serial = random.randbytes(16).hex().upper()
         runner = Popen(
-            ["./usbip-runner", "--state-file", ifs, "--serial", "0x" + serial],
+            [
+                "./usbip-runner",
+                "--state-file",
+                ifs,
+                "--serial",
+                "0x" + serial,
+                "--fido-cert",
+                "./data/fido.cert",
+                "--fido-key",
+                "./data/fido.key",
+            ],
             env={"RUST_LOG": "info"},
         )
         logger.debug(
@@ -168,7 +179,16 @@ def get_serial(device: str) -> str:
     return serial.hex().upper()
 
 
+def spawn_device(tmp_dir: str) -> Generator[Device, None, None]:
+    ifs = os.path.join(tmp_dir, "ifs.bin")
+    with UsbipDevice.spawn(ifs) as device:
+        yield device
+
+
 def pytest_addoption(parser: Parser) -> None:
+    parser.addoption(
+        "--keep-state", action="store_true",
+    )
     parser.addoption(
         "--use-usb-device", action="store",
     )
@@ -180,7 +200,11 @@ def device(request: FixtureRequest) -> Generator[Device, None, None]:
     if serial:
         yield UsbDevice.find(serial)
     else:
-        with TemporaryDirectory() as d:
-            ifs = os.path.join(d, "ifs.bin")
-            with UsbipDevice.spawn(ifs) as device:
-                yield device
+        if request.config.getoption("--keep-state"):
+            if not os.path.exists("./state"):
+                os.mkdir("./state")
+            tmp_dir = mkdtemp(dir="./state")
+            yield from spawn_device(tmp_dir)
+        else:
+            with TemporaryDirectory() as d:
+                yield from spawn_device(d)
