@@ -15,7 +15,8 @@ check: venv
 	"$(VENV)"/bin/reuse lint
 
 .PHONY: run
-run: $(VENV) usbip-runner
+run: export PYNK_DEBUG=10
+run: $(VENV) usbip-runner usbip-provisioner
 	. "$(VENV)"/bin/activate ; pytest --color yes --log-level debug $(PYTEST_FLAGS)
 
 .PHONY: build-docker
@@ -39,6 +40,9 @@ $(VENV):
 update-venv: $(VENV)
 	"$(VENV)"/bin/pip install --requirement requirements.txt
 	"$(VENV)"/bin/pip install --requirement dev-requirements.txt
+
+usbip-provisioner:
+	$(error missing usbip-provisioner: copy the binary from nitrokey-3-firmware)
 
 usbip-runner:
 	$(error missing usbip-runner: copy the binary from nitrokey-3-firmware)

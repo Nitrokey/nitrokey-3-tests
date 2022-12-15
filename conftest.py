@@ -50,8 +50,23 @@ class UsbipDevice(Device):
         if self._runner:
             self._runner.terminate()
 
+    def provision(self) -> None:
+        logger.debug("Provisioning usbip-runner")
+        subprocess.check_call(
+            [
+                "nitropy",
+                "nk3",
+                "provision",
+                "fido2",
+                "--cert",
+                "data/fido.cert",
+                "--key",
+                "data/fido.key",
+            ],
+        )
+
     @staticmethod
-    def spawn(ifs: str) -> "UsbipDevice":
+    def spawn(binary: str, ifs: str) -> "UsbipDevice":
         mods = subprocess.check_output(["lsmod"], encoding="utf-8")
         mod_lines = mods.splitlines()
         if not any([line.startswith("vhci_hcd") for line in mod_lines]):
@@ -62,12 +77,11 @@ class UsbipDevice(Device):
 
         serial = random.randbytes(16).hex().upper()
         runner = Popen(
-            ["./usbip-runner", "--state-file", ifs, "--serial", "0x" + serial],
+            [binary, "--state-file", ifs, "--serial", "0x" + serial],
             env={"RUST_LOG": "info"},
         )
         logger.debug(
-            f"usbip-runner spawned: pid={runner.pid}, ifs={ifs}, "
-            f"serial={serial})"
+            f"{binary} spawned: pid={runner.pid}, ifs={ifs}, serial={serial})"
         )
 
         host = "localhost"
@@ -182,5 +196,7 @@ def device(request: FixtureRequest) -> Generator[Device, None, None]:
     else:
         with TemporaryDirectory() as d:
             ifs = os.path.join(d, "ifs.bin")
-            with UsbipDevice.spawn(ifs) as device:
+            with UsbipDevice.spawn("./usbip-provisioner", ifs) as device:
+                device.provision()
+            with UsbipDevice.spawn("./usbip-runner", ifs) as device:
                 yield device

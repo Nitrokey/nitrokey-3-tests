@@ -4,7 +4,7 @@
 FROM debian:stable
 
 RUN apt-get update
-RUN apt-get install --yes kmod make python3 python3-venv usbip usbutils
+RUN apt-get install --yes git kmod make python3 python3-venv usbip usbutils
 
 ENV VENV=/venv
 COPY requirements.txt .
