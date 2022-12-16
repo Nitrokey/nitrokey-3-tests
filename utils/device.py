@@ -174,6 +174,8 @@ def find_devices(vid: int, pid: int) -> List[str]:
 
 def find_device(vid: int, pid: int) -> str:
     devices = find_devices(vid, pid)
+    if not devices:
+        raise RuntimeError("no matching device found")
     if len(devices) > 1:
         raise RuntimeError(f"{len(devices)} devices connected: {devices}")
     return devices[0]

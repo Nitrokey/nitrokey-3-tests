@@ -1,9 +1,11 @@
 # Copyright (C) 2022 Nitrokey GmbH
 # SPDX-License-Identifier: CC0-1.0
 
+from contextlib import contextmanager
 from pexpect import spawn
 from utils.fido2 import Fido2
 from utils.subprocess import check_output
+from utils.upgrade import ExecUpgradeTest
 
 
 def test_lsusb(device) -> None:
@@ -18,11 +20,18 @@ def test_list(device) -> None:
     # TODO: assert that there are no other keys
 
 
-def test_fido2(device) -> None:
-    fido2 = Fido2(device.hidraw)
-    credential = fido2.register(b"user_id", "A. User")
-    fido2.authenticate([credential])
+class TestFido2(ExecUpgradeTest):
     # TODO:
     # - Test server with non-registered client
     # - Test client with non-registered server
     # - Test with multiple credentials
+
+    @contextmanager
+    def context(self, device):
+        yield Fido2(device.hidraw)
+
+    def prepare(self, fido2):
+        return fido2.register(b"user_id", "A. User")
+
+    def verify(self, fido2, credential):
+        fido2.authenticate([credential])
