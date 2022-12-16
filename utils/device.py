@@ -76,9 +76,12 @@ class UsbipDevice(Device):
                 "`modprobe vhci-hcd`"
             )
 
+        env = os.environ.copy()
+        if "RUST_LOG" not in env:
+            env["RUST_LOG"] = "info"
         runner = Popen(
             [binary, "--ifs", ifs, "--serial", "0x" + serial],
-            env={"RUST_LOG": "info"},
+            env=env,
         )
         logger.debug(
             f"{binary} spawned: pid={runner.pid}, ifs={ifs}, serial={serial})"
