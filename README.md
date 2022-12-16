@@ -7,7 +7,7 @@ SPDX-License-Identifier: CC0-1.0
 
 ## Quickstart
 
-To be able to run the tests using usbip simulation, copy the `usbip-runner` and `usbip-provisioner` binaries from the `nitrokey-3-firmware` repository to this directory ([PR](https://github.com/Nitrokey/nitrokey-3-firmware/pull/135)) and make sure that the `vhci-hcd` kernel module is loaded.
+To be able to run the tests using usbip simulation, copy the `usbip-runner`, `usbip-provisioner`, `usbip-runner-old` and `usbip-provisioner-old` binaries from the `nitrokey-3-firmware` repository to this directory ([PR](https://github.com/Nitrokey/nitrokey-3-firmware/pull/135)) and make sure that the `vhci-hcd` kernel module is loaded.
 
 - Lint the test code and run all tests in a docker container:
   ```
@@ -30,6 +30,10 @@ To be able to run the tests using usbip simulation, copy the `usbip-runner` and 
 
 The flags passed to `pytest` can be extended by setting the `PYTEST_FLAGS` environment variable.
 
+### Upgrade tests
+
+To enable upgrade tests, set the `--upgrade` flag.  This only works with virtual devices and requires the `usbip-runner-old` and `usbip-provisioner-old` binaries.
+
 ### Device selection
 
-Per default, the tests use a usbip simulation of a Nitrokey 3 device.  If you want to use them with a real Nitrokey 3 device connected to your computer, set the `--use-usb-device [uuid]` option with the UUID of your device.
+Per default, the tests use a usbip simulation of a Nitrokey 3 device.  If you want to use them with a real Nitrokey 3 device connected to your computer, set the `--use-usb-device [uuid]` option with the UUID of your device and disable the tests with the `virtual` mark with the `-m "not virtual"` option.

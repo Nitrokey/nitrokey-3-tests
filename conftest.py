@@ -185,15 +185,26 @@ def get_serial(device: str) -> str:
 
 
 @contextmanager
-def spawn_device(ifs: str) -> Generator[Device, None, None]:
-    if not os.path.exists("usbip-runner"):
-        raise RuntimeError("usbip-runner binary is missing")
-    if not os.path.exists("usbip-provisioner"):
-        raise RuntimeError("usbip-provisioner binary is missing")
+def spawn_device(
+    ifs: str,
+    provision: bool = True,
+    suffix: Optional[str] = None,
+) -> Generator[Device, None, None]:
+    runner = "usbip-runner"
+    provisioner = "usbip-provisioner"
+    if suffix:
+        runner += "-" + suffix
+        provisioner += "-" + suffix
 
-    with UsbipDevice.spawn("./usbip-provisioner", ifs) as device:
-        device.provision()
-    with UsbipDevice.spawn("./usbip-runner", ifs) as device:
+    if not os.path.exists(runner):
+        raise RuntimeError(f"{runner} binary is missing")
+    if provision and not os.path.exists(provisioner):
+        raise RuntimeError(f"{provisioner} binary is missing")
+
+    if provision:
+        with UsbipDevice.spawn("./" + provisioner, ifs) as device:
+            device.provision()
+    with UsbipDevice.spawn("./" + runner, ifs) as device:
         yield device
 
 
@@ -213,6 +224,9 @@ def pytest_addoption(parser: Parser) -> None:
         "--keep-state", action="store_true",
     )
     parser.addoption(
+        "--upgrade", action="store_true",
+    )
+    parser.addoption(
         "--use-usb-device", action="store",
     )
 
@@ -228,3 +242,10 @@ def device(request: FixtureRequest) -> Generator[Device, None, None]:
             ifs = os.path.join(s, "ifs.bin")
             with spawn_device(ifs) as device:
                 yield device
+
+
+@fixture
+def ifs(request: FixtureRequest) -> Generator[str, None, None]:
+    keep_state = request.config.getoption("--keep-state")
+    with state_dir(keep_state) as s:
+        yield os.path.join(s, "ifs.bin")

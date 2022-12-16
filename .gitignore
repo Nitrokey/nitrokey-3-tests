@@ -5,5 +5,7 @@ __pycache__
 data
 state
 usbip-provisioner
+usbip-provisioner-old
 usbip-runner
+usbip-runner-old
 venv
