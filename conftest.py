@@ -68,7 +68,7 @@ class UsbipDevice(Device):
         )
 
     @staticmethod
-    def spawn(binary: str, ifs: str) -> "UsbipDevice":
+    def spawn(binary: str, serial: str, ifs: str) -> "UsbipDevice":
         mods = subprocess.check_output(["lsmod"], encoding="utf-8")
         mod_lines = mods.splitlines()
         if not any([line.startswith("vhci_hcd") for line in mod_lines]):
@@ -77,7 +77,6 @@ class UsbipDevice(Device):
                 "`modprobe vhci-hcd`"
             )
 
-        serial = random.randbytes(16).hex().upper()
         runner = Popen(
             [binary, "--ifs", ifs, "--serial", "0x" + serial],
             env={"RUST_LOG": "info"},
@@ -184,9 +183,14 @@ def get_serial(device: str) -> str:
     return serial.hex().upper()
 
 
+def generate_serial() -> str:
+    return random.randbytes(16).hex().upper()
+
+
 @contextmanager
 def spawn_device(
     ifs: str,
+    serial: Optional[str] = None,
     provision: bool = True,
     suffix: Optional[str] = None,
 ) -> Generator[Device, None, None]:
@@ -204,10 +208,13 @@ def spawn_device(
     if provision and not os.path.exists(provisioner_binary):
         raise RuntimeError(f"{provisioner} binary is missing")
 
+    if not serial:
+        serial = generate_serial()
+
     if provision:
-        with UsbipDevice.spawn(provisioner_binary, ifs) as device:
+        with UsbipDevice.spawn(provisioner_binary, serial, ifs) as device:
             device.provision()
-    with UsbipDevice.spawn(runner_binary, ifs) as device:
+    with UsbipDevice.spawn(runner_binary, serial, ifs) as device:
         yield device
 
 
@@ -252,3 +259,8 @@ def ifs(request: FixtureRequest) -> Generator[str, None, None]:
     keep_state = request.config.getoption("--keep-state")
     with state_dir(keep_state) as s:
         yield os.path.join(s, "ifs.bin")
+
+
+@fixture
+def serial() -> str:
+    return generate_serial()
