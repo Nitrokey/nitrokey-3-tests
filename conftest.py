@@ -186,6 +186,11 @@ def get_serial(device: str) -> str:
 
 @contextmanager
 def spawn_device(ifs: str) -> Generator[Device, None, None]:
+    if not os.path.exists("usbip-runner"):
+        raise RuntimeError("usbip-runner binary is missing")
+    if not os.path.exists("usbip-provisioner"):
+        raise RuntimeError("usbip-provisioner binary is missing")
+
     with UsbipDevice.spawn("./usbip-provisioner", ifs) as device:
         device.provision()
     with UsbipDevice.spawn("./usbip-runner", ifs) as device:
