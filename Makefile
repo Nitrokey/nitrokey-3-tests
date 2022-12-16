@@ -10,12 +10,13 @@ all: check run-docker
 
 .PHONY: check
 check: venv
-	"$(VENV)"/bin/flake8 *.py
-	"$(VENV)"/bin/mypy --strict conftest.py
+	"$(VENV)"/bin/flake8 *.py **/*.py
+	"$(VENV)"/bin/mypy --strict conftest.py utils
 	"$(VENV)"/bin/reuse lint
 
 .PHONY: run
-run: $(VENV) usbip-runner
+run: export PYNK_DEBUG=10
+run: $(VENV)
 	. "$(VENV)"/bin/activate ; pytest --color yes --log-level debug $(PYTEST_FLAGS)
 
 .PHONY: build-docker
@@ -27,6 +28,7 @@ run-docker: build-docker
 	$(DOCKER) run --privileged --interactive --rm \
 		--volume /dev:/dev \
 		--volume "$(PWD):/app" \
+		--env RUST_LOG \
 		--env PYTEST_FLAGS \
 		$(TAG) make run
 
@@ -39,6 +41,3 @@ $(VENV):
 update-venv: $(VENV)
 	"$(VENV)"/bin/pip install --requirement requirements.txt
 	"$(VENV)"/bin/pip install --requirement dev-requirements.txt
-
-usbip-runner:
-	$(error missing usbip-runner: copy the binary from nitrokey-3-firmware)
