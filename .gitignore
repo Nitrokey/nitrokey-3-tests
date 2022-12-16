@@ -2,10 +2,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 __pycache__
+bin
 data
 state
-usbip-provisioner
-usbip-provisioner-old
-usbip-runner
-usbip-runner-old
 venv

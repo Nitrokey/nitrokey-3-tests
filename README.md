@@ -27,7 +27,7 @@ This will build the new firmware from `HEAD` and the old firmware from the speci
 
 ## Using the Makefile
 
-If you want to use the Makefile to run the tests, you have to provide the `usbip-runner` and `usbip-provisioner` binaries, for example by building them from source.  See the `test-local.sh` script for insipration.  If you want to execute the upgrade tests, you also have to provide the `usbip-runner-old` and `usbip-provisioner-old` binaries for the firmware version to upgrade from.
+If you want to use the Makefile to run the tests, you have to provide the `usbip-runner` and `usbip-provisioner` binaries in the `bin` directory, for example by building them from source.  See the `test-local.sh` script for insipration.  If you want to execute the upgrade tests, you also have to provide the `usbip-runner-old` and `usbip-provisioner-old` binaries for the firmware version to upgrade from.
 
 These are the most useful targets in the Makefile:
 

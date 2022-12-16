@@ -196,15 +196,18 @@ def spawn_device(
         runner += "-" + suffix
         provisioner += "-" + suffix
 
-    if not os.path.exists(runner):
+    bin_dir = "./bin"
+    runner_binary = os.path.join(bin_dir, runner)
+    provisioner_binary = os.path.join(bin_dir, provisioner)
+    if not os.path.exists(runner_binary):
         raise RuntimeError(f"{runner} binary is missing")
-    if provision and not os.path.exists(provisioner):
+    if provision and not os.path.exists(provisioner_binary):
         raise RuntimeError(f"{provisioner} binary is missing")
 
     if provision:
-        with UsbipDevice.spawn("./" + provisioner, ifs) as device:
+        with UsbipDevice.spawn(provisioner_binary, ifs) as device:
             device.provision()
-    with UsbipDevice.spawn("./" + runner, ifs) as device:
+    with UsbipDevice.spawn(runner_binary, ifs) as device:
         yield device
 
 

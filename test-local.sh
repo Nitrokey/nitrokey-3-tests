@@ -20,10 +20,12 @@ path=$1
 manifest=$path/runners/usbip/Cargo.toml
 target_dir=${CARGO_TARGET_DIR:-$path/target}
 
+mkdir -p bin
+
 cargo build --release --manifest-path "$manifest"
-cp --verbose "$target_dir"/release/usbip-runner usbip-runner
+cp --verbose "$target_dir"/release/usbip-runner bin/usbip-runner
 cargo build --release --manifest-path "$manifest" --features provisioner
-cp --verbose "$target_dir"/release/usbip-runner usbip-provisioner
+cp --verbose "$target_dir"/release/usbip-runner bin/usbip-provisioner
 
 if [ $# -eq 2 ]
 then
@@ -36,9 +38,9 @@ then
 	git checkout "$upgrade_from"
 	cd -
 	cargo build --release --manifest-path "$manifest"
-	cp --verbose "$target_dir"/release/usbip-runner usbip-runner-old
+	cp --verbose "$target_dir"/release/usbip-runner bin/usbip-runner-old
 	cargo build --release --manifest-path "$manifest" --features provisioner
-	cp --verbose "$target_dir"/release/usbip-runner usbip-provisioner-old
+	cp --verbose "$target_dir"/release/usbip-runner bin/usbip-provisioner-old
 	cd "$path"
 	git checkout -
 	cd -
