@@ -12,3 +12,4 @@ build-backend = "flit_core.buildapi"
 [tool.pytest.ini_options]
 addopts = "--strict-markers --verbose"
 markers = ["virtual"]
+python_files = "tests/*.py"
