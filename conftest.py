@@ -79,7 +79,7 @@ class UsbipDevice(Device):
 
         serial = random.randbytes(16).hex().upper()
         runner = Popen(
-            [binary, "--state-file", ifs, "--serial", "0x" + serial],
+            [binary, "--ifs", ifs, "--serial", "0x" + serial],
             env={"RUST_LOG": "info"},
         )
         logger.debug(
