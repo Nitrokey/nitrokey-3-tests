@@ -4,12 +4,12 @@
 import logging
 import os
 import os.path
-import subprocess
 from pytest import Config, FixtureRequest, Parser, fixture
 from typing import Generator
 from utils.device import (
     Device, UsbDevice, generate_serial, state_dir, spawn_device
 )
+from utils.subprocess import check_output
 
 
 logger = logging.getLogger(__name__)
@@ -31,9 +31,7 @@ def pytest_report_header(config: Config) -> str:
     def get_version(binary: str) -> str:
         path = os.path.join("bin", binary)
         if os.path.exists(path):
-            version = "v" + subprocess.check_output(
-                [path, "--version"], encoding="utf-8"
-            ).split()[1]
+            version = "v" + check_output([path, "--version"]).split()[1]
         else:
             version = "[missing]"
         return version
