@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 import pytest
-from conftest import spawn_device
+from utils.device import spawn_device
 from utils.fido2 import Fido2
 
 
