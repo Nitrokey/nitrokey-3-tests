@@ -5,7 +5,6 @@ import logging
 import os
 import os.path
 import random
-import subprocess
 import time
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
@@ -13,6 +12,7 @@ from fido2.hid import open_device
 from subprocess import Popen
 from tempfile import TemporaryDirectory, mkdtemp
 from typing import Any, Generator, List, Optional
+from .subprocess import check_call, check_output
 
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ class UsbipDevice(Device):
 
     def provision(self) -> None:
         logger.debug("Provisioning usbip-runner")
-        subprocess.check_call(
+        check_call(
             [
                 "nitropy",
                 "nk3",
@@ -68,7 +68,7 @@ class UsbipDevice(Device):
 
     @staticmethod
     def spawn(binary: str, serial: str, ifs: str) -> "UsbipDevice":
-        mods = subprocess.check_output(["lsmod"], encoding="utf-8")
+        mods = check_output(["lsmod"])
         mod_lines = mods.splitlines()
         if not any([line.startswith("vhci_hcd") for line in mod_lines]):
             raise RuntimeError(
@@ -88,9 +88,9 @@ class UsbipDevice(Device):
         )
 
         host = "localhost"
-        subprocess.check_call(["usbip", "list", "-r", host])
-        subprocess.check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
-        subprocess.check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
+        check_call(["usbip", "list", "-r", host])
+        check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
+        check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
 
         for i in range(5):
             if not find_devices(0x20a0, 0x42b2):
@@ -174,6 +174,8 @@ def find_devices(vid: int, pid: int) -> List[str]:
 
 def find_device(vid: int, pid: int) -> str:
     devices = find_devices(vid, pid)
+    if not devices:
+        raise RuntimeError("no matching device found")
     if len(devices) > 1:
         raise RuntimeError(f"{len(devices)} devices connected: {devices}")
     return devices[0]
