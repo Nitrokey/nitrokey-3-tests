@@ -35,18 +35,29 @@ class UpgradeTest(ABC, Generic[Context, State]):
     def verify(self, context: Context, state: State) -> None:
         pass
 
-    def run(self, device: Device) -> None:
-        with self.context(device) as context:
-            state = self.prepare(context)
-            self.verify(context, state)
+    def reset(self) -> None:
+        pass
 
-    def run_upgrade(self, serial: str, ifs: str) -> None:
-        with spawn_device(serial=serial, ifs=ifs, suffix="old") as device:
+    def run(self, device: Device) -> None:
+        try:
             with self.context(device) as context:
                 state = self.prepare(context)
-        with spawn_device(serial=serial, ifs=ifs, provision=False) as device:
-            with self.context(device) as context:
                 self.verify(context, state)
+        finally:
+            self.reset()
+
+    def run_upgrade(self, serial: str, ifs: str) -> None:
+        try:
+            with spawn_device(serial=serial, ifs=ifs, suffix="old") as device:
+                with self.context(device) as context:
+                    state = self.prepare(context)
+            with spawn_device(
+                serial=serial, ifs=ifs, provision=False
+            ) as device:
+                with self.context(device) as context:
+                    self.verify(context, state)
+        finally:
+            self.reset()
 
 
 class ExecUpgradeTest(UpgradeTest[Context, State]):

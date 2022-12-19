@@ -4,6 +4,10 @@
 import subprocess
 
 
+def call(cmd: list[str], timeout: int = 5) -> None:
+    subprocess.call(cmd, timeout=timeout)
+
+
 def check_call(cmd: list[str], timeout: int = 5) -> None:
     subprocess.check_call(cmd, timeout=timeout)
 
