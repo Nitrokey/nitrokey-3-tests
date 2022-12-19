@@ -12,7 +12,7 @@ from utils.fido2 import Fido2
 from utils.ssh import (
     SSH_KEY_TYPES, SSH_USER, authorized_key, keygen, keypair, ssh_command
 )
-from utils.subprocess import call, check_output
+from utils.subprocess import check_output
 from utils.upgrade import ExecUpgradeTest, UpgradeTest
 
 
@@ -85,12 +85,7 @@ class TestSshResident(UpgradeTest):
 
     def prepare(self, context):
         (device, d) = context
-        p = spawn("nitropy fido2 set-pin")
-        p.expect("enter new pin")
-        p.sendline(self.pin)
-        p.expect("confirm new pin")
-        p.sendline(self.pin)
-        p.expect("done")
+        device.set_pin(self.pin)
         return keygen(d, self.type, resident=True, pin=self.pin)
 
     def verify(self, context, state):
@@ -121,11 +116,6 @@ class TestSshResident(UpgradeTest):
             #     assert f.read() == key
         finally:
             os.chdir(pwd)
-
-    def reset(self) -> None:
-        # TODO: on the one hand, we want to ensure success.  on the other hand,
-        # we want to see the actual error if verification failed
-        call(["nitropy", "fido2", "reset", "--yes"])
 
 
 @pytest.mark.parametrize("type", SSH_KEY_TYPES)

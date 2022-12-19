@@ -59,3 +59,5 @@ To enable upgrade tests, set the `--upgrade` flag.  This only works with virtual
 ### Device selection
 
 Per default, the tests use a usbip simulation of a Nitrokey 3 device.  If you want to use them with a real Nitrokey 3 device connected to your computer, set the `--use-usb-device [uuid]` option with the UUID of your device and disable the tests with the `virtual` mark with the `-m "not virtual"` option.
+
+**Warning:** The test suite will perform destructive changes like setting a PIN or resetting the device.

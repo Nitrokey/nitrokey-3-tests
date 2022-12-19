@@ -8,7 +8,9 @@ import random
 import time
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
+from dataclasses import dataclass
 from fido2.hid import open_device
+from pexpect import spawn
 from subprocess import Popen
 from tempfile import TemporaryDirectory, mkdtemp
 from typing import Any, Generator, List, Optional
@@ -29,11 +31,27 @@ class Device(ABC):
     def serial(self) -> str:
         pass
 
+    @property
+    @abstractmethod
+    def pin(self) -> Optional[str]:
+        pass
+
+    @abstractmethod
+    def set_pin(self, pin: str) -> None:
+        pass
+
+
+@dataclass
+class UsbipState:
+    ifs: str
+    serial: str
+    pin: Optional[str] = None
+
 
 class UsbipDevice(Device):
-    def __init__(self, hidraw: str, serial: str, runner: Popen[bytes]):
+    def __init__(self, hidraw: str, state: UsbipState, runner: Popen[bytes]):
         self._hidraw = hidraw
-        self._serial = serial
+        self._state = state
         self._runner = runner
 
     @property
@@ -42,7 +60,15 @@ class UsbipDevice(Device):
 
     @property
     def serial(self) -> str:
-        return self._serial
+        return self._state.serial
+
+    @property
+    def pin(self) -> Optional[str]:
+        return self._state.pin
+
+    def set_pin(self, pin: str) -> None:
+        set_pin(self._state.pin, pin)
+        self._state.pin = pin
 
     def __enter__(self) -> "UsbipDevice":
         return self
@@ -67,7 +93,7 @@ class UsbipDevice(Device):
         )
 
     @staticmethod
-    def spawn(binary: str, serial: str, ifs: str) -> "UsbipDevice":
+    def spawn(binary: str, state: UsbipState) -> "UsbipDevice":
         mods = check_output(["lsmod"])
         mod_lines = mods.splitlines()
         if not any([line.startswith("vhci_hcd") for line in mod_lines]):
@@ -80,11 +106,12 @@ class UsbipDevice(Device):
         if "RUST_LOG" not in env:
             env["RUST_LOG"] = "info"
         runner = Popen(
-            [binary, "--ifs", ifs, "--serial", "0x" + serial],
+            [binary, "--ifs", state.ifs, "--serial", "0x" + state.serial],
             env=env,
         )
         logger.debug(
-            f"{binary} spawned: pid={runner.pid}, ifs={ifs}, serial={serial})"
+            f"{binary} spawned: pid={runner.pid}, ifs={state.ifs}, "
+            f"serial={state.serial})"
         )
 
         host = "localhost"
@@ -107,7 +134,10 @@ class UsbipDevice(Device):
         if not os.path.exists(f"/dev/{hidraw}"):
             raise RuntimeError(f"hidraw device {hidraw} does not show up")
 
-        return UsbipDevice(hidraw, serial, runner)
+        return UsbipDevice(hidraw, state, runner)
+
+
+device_pin: Optional[str] = None
 
 
 class UsbDevice(Device):
@@ -122,6 +152,16 @@ class UsbDevice(Device):
     @property
     def serial(self) -> str:
         return self._serial
+
+    @property
+    def pin(self) -> Optional[str]:
+        global device_pin
+        return device_pin
+
+    def set_pin(self, pin: str) -> None:
+        global device_pin
+        set_pin(device_pin, pin)
+        device_pin = pin
 
     @staticmethod
     def find(serial: str) -> "UsbDevice":
@@ -191,6 +231,20 @@ def generate_serial() -> str:
     return random.randbytes(16).hex().upper()
 
 
+def set_pin(old_pin: Optional[str], new_pin: str) -> None:
+    if old_pin:
+        p = spawn("nitropy fido2 change-pin")
+        p.expect("enter old pin")
+        p.sendline(old_pin)
+    else:
+        p = spawn("nitropy fido2 set-pin")
+    p.expect("enter new pin")
+    p.sendline(new_pin)
+    p.expect("confirm new pin")
+    p.sendline(new_pin)
+    p.expect("done")
+
+
 @contextmanager
 def spawn_device(
     ifs: str,
@@ -215,10 +269,11 @@ def spawn_device(
     if not serial:
         serial = generate_serial()
 
+    state = UsbipState(ifs=ifs, serial=serial)
     if provision:
-        with UsbipDevice.spawn(provisioner_binary, serial, ifs) as device:
+        with UsbipDevice.spawn(provisioner_binary, state) as device:
             device.provision()
-    with UsbipDevice.spawn(runner_binary, serial, ifs) as device:
+    with UsbipDevice.spawn(runner_binary, state) as device:
         yield device
 
 
