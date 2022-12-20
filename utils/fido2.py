@@ -1,6 +1,7 @@
 # Copyright (C) 2022 Nitrokey GmbH
 # SPDX-License-Identifier: CC0-1.0
 
+import fido2.features
 from fido2.client import Fido2Client, PinRequiredError, UserInteraction
 from fido2.hid import open_device
 from fido2.server import Fido2Server
@@ -14,6 +15,9 @@ from fido2.webauthn import (
     UserVerificationRequirement,
 )
 from typing import Any, List, Optional
+
+
+fido2.features.webauthn_json_mapping.enabled = False
 
 
 class NoInteraction(UserInteraction):
@@ -68,7 +72,7 @@ class Fido2:
         )
 
         make_credential_result = self.client.make_credential(
-            create_options["publicKey"],
+            create_options.public_key,
         )
         if require_attestation:
             assert "x5c" in make_credential_result.attestation_object.att_stmt
@@ -89,7 +93,7 @@ class Fido2:
         )
 
         get_assertion_result = self.client.get_assertion(
-            request_options["publicKey"],
+            request_options.public_key,
         )
         get_assertion_response = get_assertion_result.get_response(0)
         assert get_assertion_response.credential_id
