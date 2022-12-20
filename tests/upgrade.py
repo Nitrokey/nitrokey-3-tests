@@ -23,6 +23,11 @@ def test(test: Type[ExecUpgradeTest], serial: str, ifs: str) -> None:
 
 
 @pytest.mark.virtual
+def test_fido2_resident(serial: str, ifs: str) -> None:
+    tests.basic.TestFido2Resident().run_upgrade(serial, ifs)
+
+
+@pytest.mark.virtual
 @pytest.mark.parametrize("type", SSH_KEY_TYPES)
 def test_ssh(serial: str, ifs: str, type: str) -> None:
     tests.basic.TestSsh(type).run_upgrade(serial, ifs)
