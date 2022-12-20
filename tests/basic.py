@@ -45,6 +45,43 @@ class TestFido2(ExecUpgradeTest):
         fido2.authenticate([credential])
 
 
+class TestFido2Resident(UpgradeTest):
+    def __init__(self):
+        # TODO: PIN generation
+        self.pin = "".join(random.choices(string.digits, k=8))
+
+    @contextmanager
+    def context(self, device):
+        yield device
+
+    def prepare(self, device):
+        device.set_pin(self.pin)
+        fido2 = Fido2(device.hidraw, self.pin)
+        return fido2.register(b"user_id", "A. User", resident_key=True)
+
+    def verify(self, device, credential):
+        fido2 = Fido2(device.hidraw, self.pin)
+        fido2.authenticate([credential])
+
+        # This command currently does not work due to a pynitrokey bug.
+        # p = spawn("nitropy fido2 list-credentials")
+        # p.expect("provide pin")
+        # p.sendline(self.pin)
+        # p.expect(f"id: {credential.credential_id.hex()}")
+        # TODO: check user
+
+        p = spawn("nitropy fido2 delete-credential")
+        p.expect("provide credential-id")
+        p.sendline(credential.credential_id.hex())
+        p.expect("provide pin")
+        p.sendline(self.pin)
+        p.expect("successfully deleted")
+
+
+def test_fido2_resident(device) -> None:
+    TestFido2Resident().run(device)
+
+
 class TestSsh(UpgradeTest):
     def __init__(self, type: str):
         self.type = type
@@ -74,8 +111,8 @@ def test_ssh(device, type) -> None:
 
 class TestSshResident(UpgradeTest):
     def __init__(self, type: str):
-        # TODO: PIN generation
         self.type = type + "-sk"
+        # TODO: PIN generation
         self.pin = "".join(random.choices(string.digits, k=8))
 
     @contextmanager
