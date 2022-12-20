@@ -46,6 +46,8 @@ class TestFido2(ExecUpgradeTest):
 
 
 class TestFido2Resident(UpgradeTest):
+    __test__ = False
+
     def __init__(self):
         # TODO: PIN generation
         self.pin = "".join(random.choices(string.digits, k=8))
@@ -83,6 +85,8 @@ def test_fido2_resident(device) -> None:
 
 
 class TestSsh(UpgradeTest):
+    __test__ = False
+
     def __init__(self, type: str):
         self.type = type
 
@@ -110,6 +114,8 @@ def test_ssh(device, type) -> None:
 
 
 class TestSshResident(UpgradeTest):
+    __test__ = False
+
     def __init__(self, type: str):
         self.type = type + "-sk"
         # TODO: PIN generation
