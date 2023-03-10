@@ -12,7 +12,17 @@ Make sure that the `vhci-hcd` kernel module is loaded:
 # lsmod | grep vhci_hcd || modprobe vhci-hcd
 ```
 
-Use the `test-local.sh` script to compile the usbip runner from a local Git checkout of the [`nitrokey-3-firmware`][] repository and to execute all tests for it:
+Use the `test-release.sh` script to download and test the usbip binaries from a GitHub release of the [`nitrokey-3-firmware`][] repository:
+```
+$ ./test-release.sh v1.3.0-rc.1
+```
+
+If you pass a second version, it will also run upgrade tests from that version:
+```
+$ ./test-release.sh v1.3.0-rc.1 v1.2.2-alpha.20230224
+```
+
+Use the `test-local.sh` script to compile the usbip runner from a local Git checkout of the [`nitrokey-3-firmware`][] repository instead:
 ```
 $ ./test-local.sh ../nitrokey-3-firmware
 ```
