@@ -20,16 +20,16 @@ tag=$1
 mkdir -p bin
 
 runner=`echo $tag | grep --quiet alpha && echo alpha || echo runner`
-curl --silent --location "https://github.com/Nitrokey/nitrokey-3-firmware/releases/download/$tag/usbip-$runner-$tag" --output bin/usbip-runner
-curl --silent --location "https://github.com/Nitrokey/nitrokey-3-firmware/releases/download/$tag/usbip-provisioner-$tag" --output bin/usbip-provisioner
+curl --fail --show-error --silent --location "https://github.com/Nitrokey/nitrokey-3-firmware/releases/download/$tag/usbip-$runner-$tag" --output bin/usbip-runner
+curl --fail --show-error --silent --location "https://github.com/Nitrokey/nitrokey-3-firmware/releases/download/$tag/usbip-provisioner-$tag" --output bin/usbip-provisioner
 
 if [ $# -eq 2 ]
 then
 	upgrade_from=$2
 
 	runner=`echo $upgrade_from | grep --quiet alpha && echo alpha || echo runner`
-	curl --silent --location "https://github.com/Nitrokey/nitrokey-3-firmware/releases/download/$upgrade_from/usbip-$runner-$upgrade_from" --output bin/usbip-runner-old
-	curl --silent --location "https://github.com/Nitrokey/nitrokey-3-firmware/releases/download/$upgrade_from/usbip-provisioner-$upgrade_from" --output bin/usbip-provisioner-old
+	curl --fail --show-error --silent --location "https://github.com/Nitrokey/nitrokey-3-firmware/releases/download/$upgrade_from/usbip-$runner-$upgrade_from" --output bin/usbip-runner-old
+	curl --fail --show-error --silent --location "https://github.com/Nitrokey/nitrokey-3-firmware/releases/download/$upgrade_from/usbip-provisioner-$upgrade_from" --output bin/usbip-provisioner-old
 
 	export PYTEST_FLAGS="--upgrade"
 fi
