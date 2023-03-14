@@ -4,5 +4,5 @@
 fido2 >=1.1,<2
 pexpect >=4,<5
 # pynitrokey ==0.4.31
-git+https://github.com/nitrokey/pynitrokey@0e8bf844fd764807828cb6539e519170d5bb0be5#egg=pynitrokey
+git+https://github.com/nitrokey/pynitrokey@e40f91a4232b09cbb6c92740f650b9c170da7033#egg=pynitrokey
 pytest >=7,<8

@@ -6,7 +6,7 @@ import pytest
 import random
 import string
 from contextlib import contextmanager
-from pexpect import spawn
+from pexpect import EOF, spawn
 from tempfile import TemporaryDirectory
 from utils.fido2 import Fido2
 from utils.ssh import (
@@ -82,6 +82,70 @@ class TestFido2Resident(UpgradeTest):
 
 def test_fido2_resident(device) -> None:
     TestFido2Resident().run(device)
+
+
+class TestSecrets(UpgradeTest):
+    __test__ = False
+
+    def __init__(self):
+        # TODO: PIN generation
+        self.pin = "".join(random.choices(string.digits, k=8))
+
+    def _spawn_with_pin(self, s):
+        p = spawn(s)
+        p.expect("Current Password")
+        p.sendline(self.pin)
+        return p
+
+    def _list_and_get(self, i):
+        p = self._spawn_with_pin("nitropy nk3 secrets list")
+        output = p.read().decode("utf-8")
+        assert "test_hotp" in output
+        assert "test_totp" in output
+
+        p = self._spawn_with_pin("nitropy nk3 secrets get test_hotp")
+        if i == 0:
+            p.expect("755224")
+        else:
+            p.expect("287082")
+
+        p = self._spawn_with_pin(
+            "nitropy nk3 secrets get test_totp --timestamp 59"
+        )
+        p.expect("287082")
+
+    @contextmanager
+    def context(self, device):
+        yield device
+
+    def prepare(self, device):
+        p = spawn("nitropy nk3 secrets set-pin")
+        p.expect("Password:")
+        p.sendline(self.pin)
+        p.expect("Repeat for confirmation:")
+        p.sendline(self.pin)
+        p.expect("Password set")
+
+        p = self._spawn_with_pin(
+            "nitropy nk3 secrets register --kind HOTP test_hotp "
+            "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+        )
+        p.expect(EOF)
+
+        p = self._spawn_with_pin(
+            "nitropy nk3 secrets register --kind TOTP test_totp "
+            "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+        )
+        p.expect(EOF)
+
+        self._list_and_get(0)
+
+    def verify(self, device, state):
+        self._list_and_get(1)
+
+
+def test_secrets(device) -> None:
+    TestSecrets().run(device)
 
 
 class TestSsh(UpgradeTest):
