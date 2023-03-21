@@ -28,6 +28,20 @@ def test_list(device) -> None:
     # TODO: assert that there are no other keys
 
 
+def test_reset_fido2(device) -> None:
+    p = spawn("nitropy fido2 reset")
+    p.expect("continue?")
+    p.sendline("y")
+    p.expect("....aaaand they're gone")
+
+
+def test_reset_secrets(device) -> None:
+    p = spawn("nitropy nk3 secrets reset")
+    p.expect("continue?")
+    p.sendline("y")
+    p.expect("Operation executed")
+
+
 class TestFido2(ExecUpgradeTest):
     # TODO:
     # - Test server with non-registered client
