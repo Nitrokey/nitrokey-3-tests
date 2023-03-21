@@ -164,12 +164,13 @@ class UsbDevice(Device):
         device_pin = pin
 
     @staticmethod
-    def find(serial: str) -> "UsbDevice":
+    def find(serials: List[str]) -> "UsbDevice":
         device = find_device(0x20a0, 0x42b2)
         device_serial = get_serial(device)
-        if int(serial, 16) != int(device_serial, 16):
+        if int(device_serial, 16) not in map(lambda x: int(x, 16), serials):
             raise RuntimeError(
-                f"Expected device with serial {serial}, found {device_serial}"
+                "Expected device with any of these UUIDs: "
+                f"{','.join(serials)}, found {device_serial}"
             )
         return UsbDevice(device, device_serial)
 

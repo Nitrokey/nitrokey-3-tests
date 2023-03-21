@@ -23,7 +23,7 @@ def pytest_addoption(parser: Parser) -> None:
         "--upgrade", action="store_true",
     )
     parser.addoption(
-        "--use-usb-device", action="store",
+        "--use-usb-devices", action="store", nargs="*"
     )
 
 
@@ -58,9 +58,9 @@ def pytest_report_header(config: Config) -> str:
 
 @fixture(scope="module")
 def device(request: FixtureRequest) -> Generator[Device, None, None]:
-    serial = request.config.getoption("--use-usb-device")
-    if serial:
-        yield UsbDevice.find(serial)
+    serials = request.config.getoption("--use-usb-devices")
+    if serials:
+        yield UsbDevice.find(serials)
     else:
         keep_state = request.config.getoption("--keep-state")
         with state_dir(keep_state) as s:
