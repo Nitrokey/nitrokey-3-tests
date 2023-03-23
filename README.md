@@ -68,6 +68,14 @@ To enable upgrade tests, set the `--upgrade` flag.  This only works with virtual
 
 ### Device selection
 
-Per default, the tests use a usbip simulation of a Nitrokey 3 device.  If you want to use them with a real Nitrokey 3 device connected to your computer, set the `--use-usb-device [uuid]` option with the UUID of your device and disable the tests with the `virtual` mark with the `-m "not virtual"` option.
+Per default, the tests use a usbip simulation of a Nitrokey 3 device. If you want to use them with a real Nitrokey 3 device connected to your computer:
+* set `--use-usb-devices [uuid1] [uuid2] ... [uuidN]` (using `PYTEST_FLAGS`) option with the UUIDs to whitelist for testing
+* disable the tests with the `virtual` mark with the `-m "not virtual"` option
+
+There also is a shortcut for this: 
+* create a `variables.mk` with the variable: `ALLOWED_UUIDS` which will be used for `--use-usb-devices`
+* use `make run-hw` to run the tests on *one* of the `ALLOWED_UUIDS`
+  * you can pass `PYTEST_EXTRA` to the `make` call to call pytest with these extra arguments
+
 
 **Warning:** The test suite will perform destructive changes like setting a PIN or resetting the device.

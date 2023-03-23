@@ -5,6 +5,11 @@ TAG := nitrokey-3-tests
 DOCKER ?= docker
 VENV ?= venv
 
+# put UUIDs which shall be allowed for testing into
+# ALLOWED_UUIDS inside 'variables.mk'
+# (seperate them by whitespace)
+-include variables.mk
+
 .PHONY: all
 all: check run-docker
 
@@ -31,6 +36,10 @@ run-docker: build-docker
 		--env RUST_LOG \
 		--env PYTEST_FLAGS \
 		$(TAG) make run
+
+.PHONY: run-hw
+run-hw: build-docker
+	$(MAKE) run-docker PYTEST_FLAGS="--use-usb-devices $(ALLOWED_UUIDS) -m 'not virtual' $(PYTEST_EXTRA)"
 
 $(VENV):
 	python3 -m venv "$(VENV)"
