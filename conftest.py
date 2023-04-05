@@ -65,7 +65,8 @@ def device(request: FixtureRequest) -> Generator[Device, None, None]:
         keep_state = request.config.getoption("--keep-state")
         with state_dir(keep_state) as s:
             ifs = os.path.join(s, "ifs.bin")
-            with spawn_device(ifs) as device:
+            efs = os.path.join(s, "efs.bin")
+            with spawn_device(ifs, efs) as device:
                 yield device
 
 
@@ -74,6 +75,13 @@ def ifs(request: FixtureRequest) -> Generator[str, None, None]:
     keep_state = request.config.getoption("--keep-state")
     with state_dir(keep_state) as s:
         yield os.path.join(s, "ifs.bin")
+
+
+@fixture
+def efs(request: FixtureRequest) -> Generator[str, None, None]:
+    keep_state = request.config.getoption("--keep-state")
+    with state_dir(keep_state) as s:
+        yield os.path.join(s, "efs.bin")
 
 
 @fixture

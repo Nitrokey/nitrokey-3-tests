@@ -44,6 +44,7 @@ class Device(ABC):
 @dataclass
 class UsbipState:
     ifs: str
+    efs: str
     serial: str
     pin: Optional[str] = None
 
@@ -106,12 +107,15 @@ class UsbipDevice(Device):
         if "RUST_LOG" not in env:
             env["RUST_LOG"] = "info"
         runner = Popen(
-            [binary, "--ifs", state.ifs, "--serial", "0x" + state.serial],
+            [
+                binary, "--ifs", state.ifs, "--efs", state.efs,
+                "--serial", "0x" + state.serial,
+            ],
             env=env,
         )
         logger.debug(
             f"{binary} spawned: pid={runner.pid}, ifs={state.ifs}, "
-            f"serial={state.serial})"
+            f", efs={state.efs}, serial={state.serial})"
         )
 
         host = "localhost"
@@ -248,6 +252,7 @@ def set_pin(old_pin: Optional[str], new_pin: str) -> None:
 @contextmanager
 def spawn_device(
     ifs: str,
+    efs: str,
     serial: Optional[str] = None,
     provision: bool = True,
     suffix: Optional[str] = None,
@@ -269,7 +274,7 @@ def spawn_device(
     if not serial:
         serial = generate_serial()
 
-    state = UsbipState(ifs=ifs, serial=serial)
+    state = UsbipState(ifs=ifs, efs=efs, serial=serial)
     if provision:
         with UsbipDevice.spawn(provisioner_binary, state) as device:
             device.provision()
