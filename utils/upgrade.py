@@ -46,13 +46,15 @@ class UpgradeTest(ABC, Generic[Context, State]):
         finally:
             self.reset()
 
-    def run_upgrade(self, serial: str, ifs: str) -> None:
+    def run_upgrade(self, serial: str, ifs: str, efs: str) -> None:
         try:
-            with spawn_device(serial=serial, ifs=ifs, suffix="old") as device:
+            with spawn_device(
+                serial=serial, ifs=ifs, efs=efs, suffix="old",
+            ) as device:
                 with self.context(device) as context:
                     state = self.prepare(context)
             with spawn_device(
-                serial=serial, ifs=ifs, provision=False
+                serial=serial, ifs=ifs, efs=efs, provision=False,
             ) as device:
                 with self.context(device) as context:
                     self.verify(context, state)
