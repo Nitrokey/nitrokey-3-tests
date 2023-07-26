@@ -3,6 +3,9 @@
 
 fido2 >=1.1,<2
 pexpect >=4,<5
-# pynitrokey ==0.4.31
-git+https://github.com/nitrokey/pynitrokey@e40f91a4232b09cbb6c92740f650b9c170da7033#egg=pynitrokey
+pynitrokey ==0.4.38
 pytest >=7,<8
+
+# pyyaml is broken with cython 3
+# see https://github.com/yaml/pyyaml/issues/724
+pyyaml !=6.0.0,!=5.4.0,!=5.4.1

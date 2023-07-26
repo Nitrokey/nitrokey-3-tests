@@ -9,11 +9,16 @@ class EOF:
 
 
 class spawn:
-    def __init__(self, cmd: str, args: list[str] = [], timeout: int = 30) -> None:
+    def __init__(
+        self,
+        cmd: str,
+        args: list[str] = [],
+        timeout: int = 30,
+    ) -> None:
         pass
 
-    def expect(self, s: Union[str, EOF]) -> None:
+    def expect(self, s: Union[str, EOF, list[str]]) -> int:
         pass
 
-    def sendline(self, s: str) -> None:
+    def sendline(self, s: str = "") -> None:
         pass

@@ -70,6 +70,20 @@ def device(request: FixtureRequest) -> Generator[Device, None, None]:
                 yield device
 
 
+@fixture(scope="module")
+def touch_device(request: FixtureRequest) -> Generator[Device, None, None]:
+    serials = request.config.getoption("--use-usb-devices")
+    if serials:
+        yield UsbDevice.find(serials)
+    else:
+        keep_state = request.config.getoption("--keep-state")
+        with state_dir(keep_state) as s:
+            ifs = os.path.join(s, "ifs.bin")
+            efs = os.path.join(s, "efs.bin")
+            with spawn_device(ifs, efs, user_presence=True) as device:
+                yield device
+
+
 @fixture
 def ifs(request: FixtureRequest) -> Generator[str, None, None]:
     keep_state = request.config.getoption("--keep-state")

@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from fido2.hid import open_device
 from pexpect import spawn
+from signal import SIGUSR1
 from subprocess import Popen
 from tempfile import TemporaryDirectory, mkdtemp
 from typing import Any, Generator, List, Optional
@@ -40,17 +41,27 @@ class Device(ABC):
     def set_pin(self, pin: str) -> None:
         pass
 
+    def confirm_user_presence(self) -> None:
+        pass
+
+    def reboot(self) -> None:
+        pass
+
 
 @dataclass
 class UsbipState:
     ifs: str
     efs: str
     serial: str
+    user_presence: bool
     pin: Optional[str] = None
 
 
 class UsbipDevice(Device):
-    def __init__(self, hidraw: str, state: UsbipState, runner: Popen[bytes]):
+    def __init__(
+        self, binary: str, hidraw: str, state: UsbipState, runner: Popen[bytes]
+    ):
+        self._binary = binary
         self._hidraw = hidraw
         self._state = state
         self._runner = runner
@@ -70,6 +81,19 @@ class UsbipDevice(Device):
     def set_pin(self, pin: str) -> None:
         set_pin(self._state.pin, pin)
         self._state.pin = pin
+
+    def confirm_user_presence(self) -> None:
+        if not self._state.user_presence:
+            raise Exception(
+                "confirm_user_presence called but user presence not enabled"
+            )
+        self._runner.send_signal(SIGUSR1)
+
+    def reboot(self) -> None:
+        if self._runner:
+            self._runner.terminate()
+
+        (self._runner, self._hidraw) = _spawn(self._binary, self._state)
 
     def __enter__(self) -> "UsbipDevice":
         return self
@@ -103,42 +127,52 @@ class UsbipDevice(Device):
                 "`modprobe vhci-hcd`"
             )
 
-        env = os.environ.copy()
-        if "RUST_LOG" not in env:
-            env["RUST_LOG"] = "info"
-        runner = Popen(
-            [
-                binary, "--ifs", state.ifs, "--efs", state.efs,
-                "--serial", "0x" + state.serial,
-            ],
-            env=env,
-        )
-        logger.debug(
-            f"{binary} spawned: pid={runner.pid}, ifs={state.ifs}, "
-            f", efs={state.efs}, serial={state.serial})"
-        )
+        (runner, hidraw) = _spawn(binary, state)
 
-        host = "localhost"
-        check_call(["usbip", "list", "-r", host])
-        check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
-        check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
+        return UsbipDevice(binary, hidraw, state, runner)
 
-        for i in range(5):
-            if not find_devices(0x20a0, 0x42b2):
-                time.sleep(1)
-            else:
-                break
-        hidraw = find_device(0x20a0, 0x42b2)
 
-        for i in range(5):
-            if not os.path.exists(f"/dev/{hidraw}"):
-                time.sleep(1)
-            else:
-                break
+def _spawn(binary: str, state: UsbipState) -> tuple[Popen[bytes], str]:
+    env = os.environ.copy()
+    if "RUST_LOG" not in env:
+        env["RUST_LOG"] = "info"
+    user_presence = "accept-all"
+    if state.user_presence:
+        user_presence = "signal"
+    runner = Popen(
+        [
+            binary, "--ifs", state.ifs, "--efs", state.efs,
+            "--serial", "0x" + state.serial,
+            "--user-presence", user_presence,
+        ],
+        env=env,
+    )
+    logger.debug(
+        f"{binary} spawned: pid={runner.pid}, ifs={state.ifs}, "
+        f", efs={state.efs}, serial={state.serial})"
+    )
+
+    host = "localhost"
+    check_call(["usbip", "list", "-r", host])
+    check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
+    check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
+
+    for i in range(5):
+        if not find_devices(0x20a0, 0x42b2):
+            time.sleep(1)
+        else:
+            break
+    hidraw = find_device(0x20a0, 0x42b2)
+
+    for i in range(5):
         if not os.path.exists(f"/dev/{hidraw}"):
-            raise RuntimeError(f"hidraw device {hidraw} does not show up")
+            time.sleep(1)
+        else:
+            break
+    if not os.path.exists(f"/dev/{hidraw}"):
+        raise RuntimeError(f"hidraw device {hidraw} does not show up")
 
-        return UsbipDevice(hidraw, state, runner)
+    return (runner, hidraw)
 
 
 device_pin: Optional[str] = None
@@ -255,6 +289,7 @@ def spawn_device(
     ifs: str,
     efs: str,
     serial: Optional[str] = None,
+    user_presence: bool = False,
     provision: bool = True,
     suffix: Optional[str] = None,
 ) -> Generator[Device, None, None]:
@@ -275,7 +310,9 @@ def spawn_device(
     if not serial:
         serial = generate_serial()
 
-    state = UsbipState(ifs=ifs, efs=efs, serial=serial)
+    state = UsbipState(
+        ifs=ifs, efs=efs, serial=serial, user_presence=user_presence
+    )
     if provision:
         with UsbipDevice.spawn(provisioner_binary, state) as device:
             device.provision()

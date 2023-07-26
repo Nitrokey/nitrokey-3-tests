@@ -16,16 +16,22 @@ from fido2.webauthn import (
 )
 from typing import Any, List, Optional
 
+from .device import Device
+
 
 fido2.features.webauthn_json_mapping.enabled = False
 
 
-class NoInteraction(UserInteraction):
-    def __init__(self, pin: Optional[str]) -> None:
+class Interaction(UserInteraction):
+    def __init__(
+        self, device: Optional[Device] = None, pin: Optional[str] = None
+    ) -> None:
+        self.device = device
         self.pin = pin
 
     def prompt_up(self) -> None:
-        pass
+        if self.device:
+            self.device.confirm_user_presence()
 
     def request_pin(self, permissions: Any, rd_id: Any) -> str:
         if self.pin:
@@ -39,12 +45,16 @@ class NoInteraction(UserInteraction):
 
 
 class Fido2:
-    def __init__(self, hidraw: str, pin: Optional[str] = None) -> None:
-        device = open_device(f"/dev/{hidraw}")
+    def __init__(
+        self,
+        device: Device,
+        pin: Optional[str] = None,
+    ) -> None:
+        hid_device = open_device(f"/dev/{device.hidraw}")
         self.client = Fido2Client(
-            device,
+            hid_device,
             "https://example.com",
-            user_interaction=NoInteraction(pin),
+            user_interaction=Interaction(device, pin),
         )
         self.server = Fido2Server(
             PublicKeyCredentialRpEntity(id="example.com", name="Example RP"),

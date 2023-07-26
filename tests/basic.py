@@ -13,7 +13,7 @@ from utils.ssh import (
     SSH_KEY_TYPES, SSH_USER, authorized_key, keygen, keypair, ssh_command
 )
 from utils.subprocess import check_output
-from utils.upgrade import ExecUpgradeTest, UpgradeTest
+from utils.upgrade import UpgradeTest
 
 
 def test_lsusb(device) -> None:
@@ -28,7 +28,9 @@ def test_list(device) -> None:
     # TODO: assert that there are no other keys
 
 
-class TestFido2(ExecUpgradeTest):
+class TestFido2(UpgradeTest):
+    __test__ = False
+
     # TODO:
     # - Test server with non-registered client
     # - Test client with non-registered server
@@ -36,13 +38,17 @@ class TestFido2(ExecUpgradeTest):
 
     @contextmanager
     def context(self, device):
-        yield Fido2(device.hidraw)
+        yield Fido2(device)
 
     def prepare(self, fido2):
         return fido2.register(b"user_id", "A. User")
 
     def verify(self, fido2, credential):
         fido2.authenticate([credential])
+
+
+def test_fido2(touch_device):
+    TestFido2().run(touch_device)
 
 
 class TestFido2Resident(UpgradeTest):
@@ -58,19 +64,18 @@ class TestFido2Resident(UpgradeTest):
 
     def prepare(self, device):
         device.set_pin(self.pin)
-        fido2 = Fido2(device.hidraw, self.pin)
+        fido2 = Fido2(device, self.pin)
         return fido2.register(b"user_id", "A. User", resident_key=True)
 
     def verify(self, device, credential):
-        fido2 = Fido2(device.hidraw, self.pin)
+        fido2 = Fido2(device, self.pin)
         fido2.authenticate([credential])
 
-        # This command currently does not work due to a pynitrokey bug.
-        # p = spawn("nitropy fido2 list-credentials")
-        # p.expect("provide pin")
-        # p.sendline(self.pin)
-        # p.expect(f"id: {credential.credential_id.hex()}")
-        # TODO: check user
+        p = spawn("nitropy fido2 list-credentials")
+        p.expect("provide pin")
+        p.sendline(self.pin)
+        p.expect(f"id: {credential.credential_id.hex()}")
+        p.expect("user: A. User")
 
         p = spawn("nitropy fido2 delete-credential")
         p.expect("provide credential-id")
@@ -80,8 +85,8 @@ class TestFido2Resident(UpgradeTest):
         p.expect("successfully deleted")
 
 
-def test_fido2_resident(device) -> None:
-    TestFido2Resident().run(device)
+def test_fido2_resident(touch_device):
+    TestFido2Resident().run(touch_device)
 
 
 class TestSecrets(UpgradeTest):
