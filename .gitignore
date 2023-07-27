@@ -3,6 +3,7 @@
 
 __pycache__
 bin
+cache
 data
 state
 venv

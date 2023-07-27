@@ -154,14 +154,16 @@ def _spawn(binary: str, state: UsbipState) -> tuple[Popen[bytes], str]:
 
     host = "localhost"
     check_call(["usbip", "list", "-r", host])
-    check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
-    check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
 
     for i in range(5):
-        if not find_devices(0x20a0, 0x42b2):
-            time.sleep(1)
-        else:
+        check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
+        check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
+
+        _await_device()
+
+        if find_devices(0x20a0, 0x42b2):
             break
+
     hidraw = find_device(0x20a0, 0x42b2)
 
     for i in range(5):
@@ -173,6 +175,14 @@ def _spawn(binary: str, state: UsbipState) -> tuple[Popen[bytes], str]:
         raise RuntimeError(f"hidraw device {hidraw} does not show up")
 
     return (runner, hidraw)
+
+
+def _await_device() -> None:
+    for i in range(5):
+        if not find_devices(0x20a0, 0x42b2):
+            time.sleep(1)
+        else:
+            break
 
 
 device_pin: Optional[str] = None

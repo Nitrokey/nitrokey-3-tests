@@ -1,0 +1,3 @@
+[submodule "external/CTAP2-test-tool"]
+	path = external/CTAP2-test-tool
+	url = https://github.com/google/CTAP2-test-tool
