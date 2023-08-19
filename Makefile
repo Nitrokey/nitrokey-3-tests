@@ -32,7 +32,7 @@ build-docker:
 run-docker: build-docker
 	$(DOCKER) run --privileged --interactive --rm \
 		--volume /dev:/dev \
-		--volume "$(PWD):/app" \
+		--volume "$(shell pwd):/app" \
 		--env RUST_LOG \
 		--env PYTEST_FLAGS \
 		$(TAG) make run

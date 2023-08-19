@@ -10,7 +10,7 @@ from typing import Generator, Optional, Tuple
 
 
 SSH_KEY_TYPES = ["ecdsa", "ed25519"]
-SSH_USER = "user"
+SSH_USER = os.getenv("USER", "user")
 
 
 def keygen(

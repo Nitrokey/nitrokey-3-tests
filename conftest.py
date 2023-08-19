@@ -36,6 +36,17 @@ def pytest_report_header(config: Config) -> str:
             version = "[missing]"
         return version
 
+    def get_up_support(binary: str) -> str:
+        path = os.path.join("bin", binary)
+        up_support = "[error]"
+        if os.path.exists(path):
+            try:
+                output = check_output([path, "--help"])
+                up_support = "yes" if "--user-presence" in output else "no"
+            except:
+                pass
+        return up_support
+
     runner_version = get_version("usbip-runner")
     provisioner_version = get_version("usbip-provisioner")
     if runner_version == provisioner_version:
@@ -43,10 +54,13 @@ def pytest_report_header(config: Config) -> str:
     else:
         version = f"{runner_version}/{provisioner_version}"
     header = f"usbip-runner: {version}"
+    up_prov = get_up_support('usbip-provisioner')
+    up_runner = get_up_support('usbip-runner')
+    header += f", user-presence: {up_runner}" if up_prov == up_runner else f", user-presence: {up_runner}/{up_prov}"
 
     if config.getoption("--upgrade"):
-        runner_version = get_version("usbip-runner")
-        provisioner_version = get_version("usbip-provisioner")
+        runner_version = get_version("usbip-runner-old")
+        provisioner_version = get_version("usbip-provisioner-old")
         if runner_version == provisioner_version:
             version = runner_version
         else:

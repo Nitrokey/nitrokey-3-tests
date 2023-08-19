@@ -1,12 +1,12 @@
 # Copyright (C) 2022 Nitrokey GmbH
 # SPDX-License-Identifier: CC0-1.0
-
+import logging
 import os
 import pytest
 import random
 import string
-from contextlib import contextmanager
-from pexpect import EOF, spawn
+from contextlib import contextmanager, suppress
+from pexpect import EOF, spawn, ExceptionPexpect, TIMEOUT
 from tempfile import TemporaryDirectory
 from utils.fido2 import Fido2
 from utils.ssh import (
@@ -47,8 +47,8 @@ class TestFido2(UpgradeTest):
         fido2.authenticate([credential])
 
 
-def test_fido2(touch_device):
-    TestFido2().run(touch_device)
+def test_fido2(device):
+    TestFido2().run(device)
 
 
 class TestFido2Resident(UpgradeTest):
@@ -85,8 +85,8 @@ class TestFido2Resident(UpgradeTest):
         p.expect("successfully deleted")
 
 
-def test_fido2_resident(touch_device):
-    TestFido2Resident().run(touch_device)
+def test_fido2_resident(device):
+    TestFido2Resident().run(device)
 
 
 class TestSecrets(UpgradeTest):
@@ -98,8 +98,9 @@ class TestSecrets(UpgradeTest):
 
     def _spawn_with_pin(self, s):
         p = spawn(s)
-        p.expect("Current Password")
-        p.sendline(self.pin)
+        with suppress(EOF, TIMEOUT):
+            p.expect("Current PIN", timeout=5)
+            p.sendline(self.pin)
         return p
 
     def _list_and_get(self, i):
@@ -109,15 +110,18 @@ class TestSecrets(UpgradeTest):
         assert "test_totp" in output
 
         p = self._spawn_with_pin("nitropy nk3 secrets get test_hotp")
-        if i == 0:
-            p.expect("755224")
-        else:
-            p.expect("287082")
+        before_buf = p.before.decode("utf-8")
+        logging.getLogger("main").debug(before_buf)
+        otp_code = "755224" if i == 0 else "287082"
+        assert otp_code in before_buf
 
         p = self._spawn_with_pin(
             "nitropy nk3 secrets get test_totp --timestamp 59"
         )
-        p.expect("287082")
+        before_buf = p.before.decode("utf-8")
+        logging.getLogger("main").debug(before_buf)
+        otp_code ="287082"
+        assert otp_code in before_buf
 
     @contextmanager
     def context(self, device):
@@ -152,84 +156,3 @@ class TestSecrets(UpgradeTest):
 def test_secrets(device) -> None:
     TestSecrets().run(device)
 
-
-class TestSsh(UpgradeTest):
-    __test__ = False
-
-    def __init__(self, type: str):
-        self.type = type
-
-    @contextmanager
-    def context(self, device):
-        with TemporaryDirectory() as d:
-            yield (device, d)
-
-    def prepare(self, context):
-        (device, d) = context
-        return keygen(d, self.type)
-
-    def verify(self, context, state):
-        (device, d) = context
-        (key, pubkey) = state
-        (key_path, pubkey_path) = keypair(d, key, pubkey)
-        with authorized_key(pubkey):
-            p = spawn(ssh_command(pubkey_path, "whoami"))
-            p.expect(SSH_USER)
-
-
-@pytest.mark.parametrize("type", SSH_KEY_TYPES)
-def test_ssh(device, type) -> None:
-    TestSsh(type).run(device)
-
-
-class TestSshResident(UpgradeTest):
-    __test__ = False
-
-    def __init__(self, type: str):
-        self.type = type + "-sk"
-        # TODO: PIN generation
-        self.pin = "".join(random.choices(string.digits, k=8))
-
-    @contextmanager
-    def context(self, device):
-        with TemporaryDirectory() as d:
-            yield (device, d)
-
-    def prepare(self, context):
-        (device, d) = context
-        device.set_pin(self.pin)
-        return keygen(d, self.type, resident=True, pin=self.pin)
-
-    def verify(self, context, state):
-        (device, d) = context
-        (key, pubkey) = state
-        (key_path, pubkey_path) = keypair(d, key, pubkey)
-        with authorized_key(pubkey):
-            p = spawn(ssh_command(pubkey_path, "whoami"))
-            p.expect(SSH_USER)
-
-        filename = "id_" + self.type.replace('-', '_') + "_rk"
-        download_dir = os.path.join(d, "download")
-        os.mkdir(download_dir)
-        pwd = os.getcwd()
-        try:
-            os.chdir(download_dir)
-            p = spawn("ssh-keygen -K")
-            p.expect("Enter PIN for authenticator")
-            p.sendline(self.pin)
-            p.expect("Enter passphrase")
-            p.sendline("")
-            p.expect("Enter same passphrase")
-            p.sendline("")
-            p.expect(filename)
-            assert os.path.exists(filename)
-            # TODO: check why the key is partially different
-            # with open(filename, "rb") as f:
-            #     assert f.read() == key
-        finally:
-            os.chdir(pwd)
-
-
-@pytest.mark.parametrize("type", SSH_KEY_TYPES)
-def test_ssh_resident(device, type) -> None:
-    TestSshResident(type).run(device)

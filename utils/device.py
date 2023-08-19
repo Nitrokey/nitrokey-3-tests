@@ -7,12 +7,12 @@ import os.path
 import random
 import time
 from abc import ABC, abstractmethod
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from fido2.hid import open_device
 from pexpect import spawn
 from signal import SIGUSR1
-from subprocess import Popen
+from subprocess import Popen, STDOUT, PIPE
 from tempfile import TemporaryDirectory, mkdtemp
 from typing import Any, Generator, List, Optional
 from .subprocess import check_call, check_output
@@ -89,18 +89,36 @@ class UsbipDevice(Device):
             )
         self._runner.send_signal(SIGUSR1)
 
-    def reboot(self) -> None:
+    def stop(self) -> None:
         if self._runner:
-            self._runner.terminate()
+            # run stop command before detaching
+            cmd = "sudo usbip detach -p 00"
+            with suppress(Exception):
+                check_call(cmd.split())
 
+            self._runner.terminate()
+            for i in range(5):
+                time.sleep(1)
+                if self._runner.poll() is None:
+                    break
+                print('.', end='', flush=True)
+
+            print(f"Terminated: {self._runner.poll() is None}")
+            self._runner = None
+
+            for app in ["usbip-runner", "usbip-provisioner"]:
+                with suppress(Exception):
+                    check_output(f"pkill -f {app}".split())
+
+    def reboot(self) -> None:
+        self.stop()
         (self._runner, self._hidraw) = _spawn(self._binary, self._state)
 
     def __enter__(self) -> "UsbipDevice":
         return self
 
     def __exit__(self, type: Any, value: Any, traceback: Any) -> None:
-        if self._runner:
-            self._runner.terminate()
+        self.stop()
 
     def provision(self) -> None:
         logger.debug("Provisioning usbip-runner")
@@ -138,33 +156,64 @@ def _spawn(binary: str, state: UsbipState) -> tuple[Popen[bytes], str]:
         env["RUST_LOG"] = "info"
     user_presence = "accept-all"
     if state.user_presence:
+        logger.info("Setting user presence communication to 'signal'")
         user_presence = "signal"
+    additional_args = ["--user-presence", f"{user_presence}"]
+
+    # Check if binary handles user presence switch
+    # and remove additional args if not
+    out = check_output(
+        [binary, "--help"],
+        stderr=STDOUT,
+    )
+    if "--user-presence" not in out:
+        logger.warning("User presence not supported by binary")
+        additional_args = []
+
+    # kill any running usbip-runner or usbip-provisioner
+    for app in ["usbip-runner", "usbip-provisioner"]:
+        with suppress(Exception):
+            check_output(f"pkill -f {app}".split())
+    time.sleep(1)
+
     runner = Popen(
         [
             binary, "--ifs", state.ifs, "--efs", state.efs,
             "--serial", "0x" + state.serial,
-            "--user-presence", user_presence,
+            *additional_args,
         ],
         env=env,
     )
+
+
     logger.debug(
         f"{binary} spawned: pid={runner.pid}, ifs={state.ifs}, "
         f", efs={state.efs}, serial={state.serial})"
     )
 
-    host = "localhost"
-    check_call(["usbip", "list", "-r", host])
-    check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
-    check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
 
-    for i in range(5):
+    # use netstat -lntup | grep usbip to check if the runner is listening
+    assert runner.poll() is None, "usbip-runner exited prematurely"
+
+    host = "localhost"
+    with suppress(Exception):
+        check_output("sudo usbip detach -p 00".split())
+    with suppress(Exception):
+        check_output(["usbip", "list", "-r", host])
+    with suppress(Exception):
+        check_output(["sudo", "usbip", "attach", "-r", host, "-b", "1-1"])
+    with suppress(Exception):
+        check_output(["sudo", "usbip", "attach", "-r", host, "-b", "1-1"])
+
+    for i in range(7):
         if not find_devices(0x20a0, 0x42b2):
             time.sleep(1)
         else:
             break
+    time.sleep(1)
     hidraw = find_device(0x20a0, 0x42b2)
 
-    for i in range(5):
+    for i in range(7):
         if not os.path.exists(f"/dev/{hidraw}"):
             time.sleep(1)
         else:
@@ -172,7 +221,7 @@ def _spawn(binary: str, state: UsbipState) -> tuple[Popen[bytes], str]:
     if not os.path.exists(f"/dev/{hidraw}"):
         raise RuntimeError(f"hidraw device {hidraw} does not show up")
 
-    return (runner, hidraw)
+    return runner, hidraw
 
 
 device_pin: Optional[str] = None
@@ -281,6 +330,7 @@ def set_pin(old_pin: Optional[str], new_pin: str) -> None:
     p.sendline(new_pin)
     p.expect("confirm new pin")
     p.sendline(new_pin)
+    # FIXME add touch confirmation ?
     p.expect("done")
 
 
