@@ -37,9 +37,12 @@ run-docker: build-docker
 		--env PYTEST_FLAGS \
 		$(TAG) make run
 
-.PHONY: run-hw
+.PHONY: run-hw run-hw-report
 run-hw: build-docker
 	$(MAKE) run-docker PYTEST_FLAGS="--use-usb-devices $(ALLOWED_UUIDS) -m 'not virtual' $(PYTEST_EXTRA)"
+
+run-hw-report:
+	$(MAKE) run-hw PYTEST_EXTRA="--template=html1/index.html --report report.html --junitxml=report-junit.xml"
 
 $(VENV):
 	python3 -m venv "$(VENV)"

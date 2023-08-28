@@ -5,6 +5,7 @@ fido2 >=1.1,<2
 pexpect >=4,<5
 pynitrokey ==0.4.38
 pytest >=7,<8
+pytest-reporter-html1
 
 # pyyaml is broken with cython 3
 # see https://github.com/yaml/pyyaml/issues/724
