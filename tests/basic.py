@@ -47,8 +47,8 @@ class TestFido2(UpgradeTest):
         fido2.authenticate([credential])
 
 
-def test_fido2(touch_device):
-    TestFido2().run(touch_device)
+def test_fido2(device):
+    TestFido2().run(device)
 
 
 class TestFido2Resident(UpgradeTest):
@@ -85,8 +85,8 @@ class TestFido2Resident(UpgradeTest):
         p.expect("successfully deleted")
 
 
-def test_fido2_resident(touch_device):
-    TestFido2Resident().run(touch_device)
+def test_fido2_resident(device):
+    TestFido2Resident().run(device)
 
 
 class TestSecrets(UpgradeTest):
@@ -98,7 +98,7 @@ class TestSecrets(UpgradeTest):
 
     def _spawn_with_pin(self, s):
         p = spawn(s)
-        p.expect("Current Password")
+        p.expect("Current PIN")
         p.sendline(self.pin)
         return p
 
@@ -132,14 +132,14 @@ class TestSecrets(UpgradeTest):
         p.expect("Password set")
 
         p = self._spawn_with_pin(
-            "nitropy nk3 secrets register --kind HOTP test_hotp "
-            "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+            "nitropy nk3 secrets register --kind HOTP --protect-with-pin "
+            "test_hotp GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
         )
         p.expect(EOF)
 
         p = self._spawn_with_pin(
-            "nitropy nk3 secrets register --kind TOTP test_totp "
-            "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+            "nitropy nk3 secrets register --kind TOTP --protect-with-pin "
+            "test_totp GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
         )
         p.expect(EOF)
 
