@@ -16,6 +16,7 @@ RUN python3 -m venv /venv
 RUN /venv/bin/pip install --upgrade pip --progress-bar off
 RUN /venv/bin/pip install --requirement requirements.txt --progress-bar off
 RUN /venv/bin/pip install --requirement dev-requirements.txt --progress-bar off
+RUN /venv/bin/pip install --force "oscrypto @ git+https://github.com/wbond/oscrypto.git@1547f535001ba568b239b8797465536759c742a3" --progress-bar off
 
 COPY entrypoint /
 
