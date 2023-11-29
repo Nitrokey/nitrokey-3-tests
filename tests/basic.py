@@ -47,7 +47,6 @@ class TestFido2(UpgradeTest):
     def verify(self, fido2, credential):
         fido2.authenticate([credential])
 
-
 def test_fido2(device):
     TestFido2().run(device)
 
@@ -85,10 +84,21 @@ class TestFido2Resident(UpgradeTest):
         p.sendline(self.pin)
         p.expect("successfully deleted")
 
-
 def test_fido2_resident(device):
     TestFido2Resident().run(device)
 
+def test_nk3_status(device):
+    p = spawn("nitropy nk3 status")
+    p.expect_exact("Init status")
+    p.expect_exact("ok")
+
+    p.expect_exact("Free blocks (int):")
+    p.expect("[1-9][0-9]+")
+
+    p.expect_exact("Free blocks (ext):")
+    p.expect("[1-9][0-9]+")
+
+    p.eof()
 
 class TestSecrets(UpgradeTest):
     __test__ = False
