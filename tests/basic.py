@@ -6,6 +6,7 @@ import pytest
 import random
 import string
 import time
+import subprocess
 from contextlib import contextmanager
 from pexpect import EOF, spawn
 from tempfile import TemporaryDirectory
@@ -247,3 +248,35 @@ class TestSshResident(UpgradeTest):
 @pytest.mark.parametrize("type", SSH_KEY_TYPES)
 def test_ssh_resident(device, type) -> None:
     TestSshResident(type).run(device)
+
+
+def test_opcard_p256(device):
+    out = subprocess.getoutput("opgpcard list")
+    card_id = out.split("\n")[1].strip()
+
+    p = spawn(f"opgpcard system factory-reset --card {card_id}")
+    p.expect_exact(f"Resetting Card {card_id}")
+    p.expect(EOF)
+
+    with open("/tmp/input_data", "w") as fd:
+        fd.write("some random data to be signed here")
+    with open("/tmp/user-pin", "w") as fd:
+        fd.write("123456")
+    with open("/tmp/admin-pin", "w") as fd:
+        fd.write("12345678")
+
+    p = spawn(f"opgpcard admin -P /tmp/admin-pin --card {card_id} generate -p /tmp/user-pin -o /tmp/public-key.asc nistp256")
+    p.expect_exact("Generate subkey for Signing")
+    p.expect(EOF)
+
+    p = spawn(f"opgpcard sign --card {card_id} -d -p /tmp/user-pin -o /tmp/data.sig /tmp/input_data")
+    p.expect(EOF)
+
+    #p = spawn("sq verify --signer-cert public-key.asc --detached data.sig input_data")
+    #p.expect_exact("Good signature from")
+    p = spawn("sqv /tmp/data.sig /tmp/input_data --keyring /tmp/public-key.asc -v")
+    p.expect_exact("1 of 1 signatures are valid")
+    p.expect(EOF)
+
+
+
