@@ -5,6 +5,7 @@ import os
 import pytest
 import random
 import string
+import time
 from contextlib import contextmanager
 from pexpect import EOF, spawn
 from tempfile import TemporaryDirectory
@@ -124,6 +125,9 @@ class TestSecrets(UpgradeTest):
         yield device
 
     def prepare(self, device):
+        p = spawn("nitropy nk3 secrets reset")
+        p.sendline("y")
+        p.expect("Done")
         p = spawn("nitropy nk3 secrets set-pin")
         p.expect("Password:")
         p.sendline(self.pin)
