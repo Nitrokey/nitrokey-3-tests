@@ -1,6 +1,7 @@
 # Copyright (C) 2022 Nitrokey GmbH
 # SPDX-License-Identifier: CC0-1.0
 
+import enum
 import logging
 import os
 import os.path
@@ -9,23 +10,81 @@ import time
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass
+from enum import Enum
 from fido2.hid import open_device
 from pexpect import spawn
 from signal import SIGUSR1
 from subprocess import Popen
 from tempfile import TemporaryDirectory, mkdtemp
-from typing import Any, Generator, List, Optional
+from typing import Any, Generator, List, Optional, Sequence
 from .subprocess import check_call, check_output
 
 
 logger = logging.getLogger(__name__)
 
 
-class Device(ABC):
+VID_NITROKEY = 0x20a0
+PID_NK3 = 0x42b2
+PID_NKPK = 0x42f3
+PIDS = [PID_NK3, PID_NKPK]
+
+
+class Model(Enum):
+    NK3 = enum.auto()
+    NKPK = enum.auto()
+
     @property
-    @abstractmethod
+    def name(self) -> str:
+        if self == Model.NK3:
+            return "Nitrokey 3"
+        if self == Model.NKPK:
+            return "Nitrokey Passkey"
+        raise ValueError(f"Unsupported model: {self}")
+
+    @property
+    def command(self) -> str:
+        if self == Model.NK3:
+            return "nk3"
+        if self == Model.NKPK:
+            return "nkpk"
+        raise ValueError(f"Unsupported model: {self}")
+
+    @staticmethod
+    def from_vid_pid(vid: int, pid: int) -> "Model":
+        if vid == VID_NITROKEY:
+            if pid == PID_NK3:
+                return Model.NK3
+            if pid == PID_NKPK:
+                return Model.NKPK
+        raise ValueError(f"Unsupported model: {vid:04x}:{pid:04x}")
+
+
+@dataclass
+class DeviceData:
+    hidraw: str
+    vid: int
+    pid: int
+
+
+class Device(ABC):
+    def __init__(self, data: DeviceData) -> None:
+        self.data = data
+
+    @property
     def hidraw(self) -> str:
-        pass
+        return self.data.hidraw
+
+    @property
+    def vid(self) -> int:
+        return self.data.vid
+
+    @property
+    def pid(self) -> int:
+        return self.data.pid
+
+    @property
+    def model(self) -> Model:
+        return Model.from_vid_pid(self.vid, self.pid)
 
     @property
     @abstractmethod
@@ -59,16 +118,16 @@ class UsbipState:
 
 class UsbipDevice(Device):
     def __init__(
-        self, binary: str, hidraw: str, state: UsbipState, runner: Popen[bytes]
+        self,
+        binary: str,
+        data: DeviceData,
+        state: UsbipState,
+        runner: Popen[bytes],
     ):
+        super().__init__(data)
         self._binary = binary
-        self._hidraw = hidraw
         self._state = state
         self._runner = runner
-
-    @property
-    def hidraw(self) -> str:
-        return self._hidraw
 
     @property
     def serial(self) -> str:
@@ -93,7 +152,7 @@ class UsbipDevice(Device):
         if self._runner:
             self._runner.terminate()
 
-        (self._runner, self._hidraw) = _spawn(self._binary, self._state)
+        (self._runner, self.data) = _spawn(self._binary, self._state)
 
     def __enter__(self) -> "UsbipDevice":
         return self
@@ -127,12 +186,12 @@ class UsbipDevice(Device):
                 "`modprobe vhci-hcd`"
             )
 
-        (runner, hidraw) = _spawn(binary, state)
+        (runner, device) = _spawn(binary, state)
 
-        return UsbipDevice(binary, hidraw, state, runner)
+        return UsbipDevice(binary, device, state, runner)
 
 
-def _spawn(binary: str, state: UsbipState) -> tuple[Popen[bytes], str]:
+def _spawn(binary: str, state: UsbipState) -> tuple[Popen[bytes], DeviceData]:
     env = os.environ.copy()
     if "RUST_LOG" not in env:
         env["RUST_LOG"] = "info"
@@ -158,34 +217,30 @@ def _spawn(binary: str, state: UsbipState) -> tuple[Popen[bytes], str]:
     check_call(["usbip", "attach", "-r", host, "-b", "1-1"])
 
     for i in range(5):
-        if not find_devices(0x20a0, 0x42b2):
+        if not find_devices(VID_NITROKEY, PIDS):
             time.sleep(1)
         else:
             break
-    hidraw = find_device(0x20a0, 0x42b2)
+    device = find_device(VID_NITROKEY, PIDS)
 
     for i in range(5):
-        if not os.path.exists(f"/dev/{hidraw}"):
+        if not os.path.exists(f"/dev/{device.hidraw}"):
             time.sleep(1)
         else:
             break
-    if not os.path.exists(f"/dev/{hidraw}"):
-        raise RuntimeError(f"hidraw device {hidraw} does not show up")
+    if not os.path.exists(f"/dev/{device.hidraw}"):
+        raise RuntimeError(f"hidraw device {device.hidraw} does not show up")
 
-    return (runner, hidraw)
+    return (runner, device)
 
 
 device_pin: Optional[str] = None
 
 
 class UsbDevice(Device):
-    def __init__(self, hidraw: str, serial: str) -> None:
-        self._hidraw = hidraw
+    def __init__(self, data: DeviceData, serial: str) -> None:
+        super().__init__(data)
         self._serial = serial
-
-    @property
-    def hidraw(self) -> str:
-        return self._hidraw
 
     @property
     def serial(self) -> str:
@@ -203,8 +258,8 @@ class UsbDevice(Device):
 
     @staticmethod
     def find(serials: List[str]) -> "UsbDevice":
-        device = find_device(0x20a0, 0x42b2)
-        device_serial = get_serial(device)
+        device = find_device(VID_NITROKEY, PIDS)
+        device_serial = get_serial(device.hidraw)
         if int(device_serial, 16) not in map(lambda x: int(x, 16), serials):
             raise RuntimeError(
                 "Expected device with any of these UUIDs: "
@@ -224,7 +279,7 @@ def find_hidraw_device(path: str, subdirs: List[str]) -> Optional[str]:
     return None
 
 
-def find_devices(vid: int, pid: int) -> List[str]:
+def find_devices(vid: int, pids: Sequence[int]) -> List[DeviceData]:
     devices = []
     for root, dirs, files in os.walk("/sys/devices"):
         if "dev" not in files:
@@ -240,19 +295,24 @@ def find_devices(vid: int, pid: int) -> List[str]:
         with open(os.path.join(root, "idProduct")) as f:
             current_pid = int(f.read(), 16)
 
-        if current_vid == vid and current_pid == pid:
+        if current_vid == vid and current_pid in pids:
             device = find_hidraw_device(root, subdirs)
             if device:
                 logger.debug(
                     f"found USB device: vid={current_vid:04x}, "
                     f"pid={current_pid:04x}, device={device}"
                 )
-                devices.append(device)
+                data = DeviceData(
+                    hidraw=device,
+                    vid=current_vid,
+                    pid=current_pid,
+                )
+                devices.append(data)
     return devices
 
 
-def find_device(vid: int, pid: int) -> str:
-    devices = find_devices(vid, pid)
+def find_device(vid: int, pids: Sequence[int]) -> DeviceData:
+    devices = find_devices(vid, pids)
     if not devices:
         raise RuntimeError("no matching device found")
     if len(devices) > 1:

@@ -18,14 +18,15 @@ from utils.upgrade import UpgradeTest
 
 
 def test_lsusb(device) -> None:
-    devices = check_output(["lsusb", "-d", "20a0:42b2"]).splitlines()
+    vid_pid = f"{device.vid:04x}:{device.pid:04x}"
+    devices = check_output(["lsusb", "-d", vid_pid]).splitlines()
     assert len(devices) == 1
 
 
 def test_list(device) -> None:
-    p = spawn("nitropy nk3 list")
-    p.expect("'Nitrokey 3' keys")
-    p.expect(f"/dev/{device.hidraw}: Nitrokey 3 {device.serial}")
+    p = spawn(f"nitropy {device.model.command} list")
+    p.expect(f"'{device.model.name}' keys")
+    p.expect(f"/dev/{device.hidraw}: {device.model.name} {device.serial}")
     # TODO: assert that there are no other keys
 
 
@@ -91,7 +92,7 @@ def test_fido2_resident(device):
 
 
 def test_nk3_status(device):
-    p = spawn("nitropy nk3 status")
+    p = spawn(f"nitropy {device.model.command} status")
     p.expect_exact("Init status")
     p.expect_exact("ok")
 
