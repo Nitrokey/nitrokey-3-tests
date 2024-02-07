@@ -5,8 +5,6 @@ import os
 import pytest
 import random
 import string
-import time
-import subprocess
 from contextlib import contextmanager
 from pexpect import EOF, spawn
 from tempfile import TemporaryDirectory
@@ -49,6 +47,7 @@ class TestFido2(UpgradeTest):
     def verify(self, fido2, credential):
         fido2.authenticate([credential])
 
+
 def test_fido2(device):
     TestFido2().run(device)
 
@@ -86,8 +85,10 @@ class TestFido2Resident(UpgradeTest):
         p.sendline(self.pin)
         p.expect("successfully deleted")
 
+
 def test_fido2_resident(device):
     TestFido2Resident().run(device)
+
 
 def test_nk3_status(device):
     p = spawn("nitropy nk3 status")
@@ -101,6 +102,7 @@ def test_nk3_status(device):
     p.expect("[1-9][0-9]+")
 
     p.eof()
+
 
 class TestSecrets(UpgradeTest):
     __test__ = False
@@ -252,7 +254,6 @@ def test_ssh_resident(device, type) -> None:
 
 
 def test_opcard_p256(device):
-    out = subprocess.getoutput("opgpcard list")
     card_id = f"000F:{device.serial[:8]}"
 
     p = spawn(f"opgpcard system factory-reset --card {card_id}")
@@ -274,18 +275,15 @@ def test_opcard_p256(device):
         with open(apin_path, "w") as fd:
             fd.write("12345678")
 
-        p = spawn(f"opgpcard admin -P {apin_path} --card {card_id} generate -p {upin_path} -o {pkey_path} nistp256")
+        p = spawn(f"opgpcard admin -P {apin_path} --card {card_id} "
+                  f"generate -p {upin_path} -o {pkey_path} nistp256")
         p.expect_exact("Generate subkey for Signing")
         p.expect(EOF)
 
-        p = spawn(f"opgpcard sign --card {card_id} -d -p {upin_path} -o {sig_path} {data_path}")
+        p = spawn(f"opgpcard sign --card {card_id} "
+                  f"-d -p {upin_path} -o {sig_path} {data_path}")
         p.expect(EOF)
 
-        #p = spawn("sq verify --signer-cert public-key.asc --detached data.sig input_data")
-        #p.expect_exact("Good signature from")
         p = spawn(f"sqv {sig_path} {data_path} --keyring {pkey_path} -v")
         p.expect_exact("1 of 1 signatures are valid")
         p.expect(EOF)
-
-
-
