@@ -3,7 +3,7 @@
 
 fido2 >=1.1,<2
 pexpect >=4,<5
-pynitrokey ==0.4.40
+pynitrokey ==0.4.42
 pytest >=7,<8
 pytest-reporter-html1
 

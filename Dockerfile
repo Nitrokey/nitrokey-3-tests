@@ -3,8 +3,16 @@
 
 FROM debian:stable
 
-RUN apt-get update
-RUN apt-get install --yes git kmod make openssh-client openssh-server python3 python3-venv usbip usbutils
+SHELL ["/bin/bash", "-c"]
+
+RUN apt-get update --fix-missing
+RUN apt-get install --yes git kmod make openssh-client openssh-server python3 python3-venv usbip usbutils sq curl pcscd pkg-config nettle-dev libpcsclite-dev clang sqv
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o rustup.sh
+RUN sh rustup.sh -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+RUN cargo install openpgp-card-tools --locked
 
 RUN useradd --create-home --user-group user
 

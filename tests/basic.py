@@ -8,6 +8,7 @@ import string
 from contextlib import contextmanager
 from pexpect import EOF, spawn
 from tempfile import TemporaryDirectory
+from pathlib import Path
 from utils.fido2 import Fido2
 from utils.ssh import (
     SSH_KEY_TYPES, SSH_USER, authorized_key, keygen, keypair, ssh_command
@@ -89,6 +90,20 @@ def test_fido2_resident(device):
     TestFido2Resident().run(device)
 
 
+def test_nk3_status(device):
+    p = spawn("nitropy nk3 status")
+    p.expect_exact("Init status")
+    p.expect_exact("ok")
+
+    p.expect_exact("Free blocks (int):")
+    p.expect("[1-9][0-9]+")
+
+    p.expect_exact("Free blocks (ext):")
+    p.expect("[1-9][0-9]+")
+
+    p.eof()
+
+
 class TestSecrets(UpgradeTest):
     __test__ = False
 
@@ -124,6 +139,9 @@ class TestSecrets(UpgradeTest):
         yield device
 
     def prepare(self, device):
+        p = spawn("nitropy nk3 secrets reset")
+        p.sendline("y")
+        p.expect("Done")
         p = spawn("nitropy nk3 secrets set-pin")
         p.expect("Password:")
         p.sendline(self.pin)
@@ -233,3 +251,39 @@ class TestSshResident(UpgradeTest):
 @pytest.mark.parametrize("type", SSH_KEY_TYPES)
 def test_ssh_resident(device, type) -> None:
     TestSshResident(type).run(device)
+
+
+def test_opcard_p256(device):
+    card_id = f"000F:{device.serial[:8]}"
+
+    p = spawn(f"opgpcard system factory-reset --card {card_id}")
+    p.expect_exact(f"Resetting Card {card_id}")
+    p.expect(EOF)
+
+    with TemporaryDirectory() as dirname:
+        path = Path(dirname)
+        data_path = path / "input-data"
+        upin_path = path / "user-pin"
+        apin_path = path / "admin-pin"
+        pkey_path = path / "public-key.asc"
+        sig_path = path / "data.sig"
+
+        with open(data_path, "w") as fd:
+            fd.write("some random data to be signed here")
+        with open(upin_path, "w") as fd:
+            fd.write("123456")
+        with open(apin_path, "w") as fd:
+            fd.write("12345678")
+
+        p = spawn(f"opgpcard admin -P {apin_path} --card {card_id} "
+                  f"generate -p {upin_path} -o {pkey_path} nistp256")
+        p.expect_exact("Generate subkey for Signing")
+        p.expect(EOF)
+
+        p = spawn(f"opgpcard sign --card {card_id} "
+                  f"-d -p {upin_path} -o {sig_path} {data_path}")
+        p.expect(EOF)
+
+        p = spawn(f"sqv {sig_path} {data_path} --keyring {pkey_path} -v")
+        p.expect_exact("1 of 1 signatures are valid")
+        p.expect(EOF)
