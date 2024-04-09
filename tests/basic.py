@@ -5,6 +5,7 @@ import os
 import pytest
 import random
 import string
+import sys
 from contextlib import contextmanager
 from pexpect import EOF, spawn
 from tempfile import TemporaryDirectory
@@ -74,12 +75,14 @@ class TestFido2Resident(UpgradeTest):
         fido2.authenticate([credential])
 
         p = spawn("nitropy fido2 list-credentials")
+        p.logfile = sys.stdout
         p.expect("provide pin")
         p.sendline(self.pin)
         p.expect(f"id: {credential.credential_id.hex()}")
         p.expect("user: A. User")
 
         p = spawn("nitropy fido2 delete-credential")
+        p.logfile = sys.stdout
         p.expect("provide credential-id")
         p.sendline(credential.credential_id.hex())
         p.expect("provide pin")
