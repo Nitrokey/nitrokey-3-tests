@@ -3,7 +3,7 @@
 
 fido2 >=1.1,<2
 pexpect >=4,<5
-pynitrokey @ git+https://github.com/nitrokey/pynitrokey@6014f8811bc8f16c9bbadf7a0cfadedea03dd371
+pynitrokey @ git+https://github.com/nitrokey/pynitrokey@68b33e031f44e3622a53858ceefe09523d2577cc
 pytest >=7,<8
 pytest-reporter-html1
 
