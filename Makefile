@@ -35,6 +35,7 @@ run-docker: build-docker
 		--volume "$(PWD):/app" \
 		--env RUST_LOG \
 		--env PYTEST_FLAGS \
+		--env PYNK_DEBUG \
 		$(TAG) make run
 
 .PHONY: run-hw run-hw-report
