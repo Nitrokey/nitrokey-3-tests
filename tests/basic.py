@@ -74,14 +74,16 @@ class TestFido2Resident(UpgradeTest):
         fido2 = Fido2(device, self.pin)
         fido2.authenticate([credential])
 
-        p = spawn("nitropy fido2 list-credentials", encoding="utf-8")
+        env = os.environ | {"PYNK_DEBUG": "5"}
+
+        p = spawn("nitropy fido2 list-credentials", encoding="utf-8", env=env)
         p.logfile = sys.stdout
         p.expect("provide pin")
         p.sendline(self.pin)
         p.expect(f"id: {credential.credential_id.hex()}")
         p.expect("user: A. User")
 
-        p = spawn("nitropy fido2 delete-credential", encoding="utf-8")
+        p = spawn("nitropy fido2 delete-credential", encoding="utf-8", env=env)
         p.logfile = sys.stdout
         p.expect("provide credential-id")
         p.sendline(credential.credential_id.hex())
