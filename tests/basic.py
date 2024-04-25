@@ -5,8 +5,9 @@ import os
 import pytest
 import random
 import string
+import subprocess
 from contextlib import contextmanager
-from pexpect import EOF, spawn
+from pexpect import EOF, spawn, fdpexpect
 from tempfile import TemporaryDirectory
 from pathlib import Path
 from utils.fido2 import Fido2
@@ -264,9 +265,10 @@ def test_ssh_resident(device, type) -> None:
 def test_opcard_p256(device):
     card_id = f"000F:{device.serial[:8]}"
 
-    p = spawn(f"opgpcard system factory-reset --card {card_id}")
+    p = spawn(f"oct system factory-reset --card {card_id}")
     p.expect_exact(f"Resetting Card {card_id}")
     p.expect(EOF)
+
 
     with TemporaryDirectory() as dirname:
         path = Path(dirname)
@@ -283,15 +285,32 @@ def test_opcard_p256(device):
         with open(apin_path, "w") as fd:
             fd.write("12345678")
 
-        p = spawn(f"opgpcard admin -P {apin_path} --card {card_id} "
-                  f"generate -p {upin_path} -o {pkey_path} nistp256")
-        p.expect_exact("Generate subkey for Signing")
+        command = [
+            "oct",
+            "admin",
+            "-P",
+            apin_path,
+            "--card",
+            card_id,
+            "generate",
+            "-p",
+            upin_path,
+            "-o",
+            pkey_path,
+            "nistp256",
+        ]
+        devNull = open(os.devnull, 'w')
+        process = subprocess.Popen(command, stdout=devNull, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = fdpexpect.fdspawn(process.stderr)
+        p.expect_exact(" Generate subkey for Signing")
+        p.expect_exact(" Generate subkey for Decryption")
+        p.expect_exact(" Generate subkey for Authentication")
         p.expect(EOF)
 
-        p = spawn(f"opgpcard sign --card {card_id} "
-                  f"-d -p {upin_path} -o {sig_path} {data_path}")
+        p = spawn(f"oct sign --card {card_id} -p {upin_path} "
+                  f"detached -o {sig_path} {data_path}")
         p.expect(EOF)
 
         p = spawn(f"sqv {sig_path} {data_path} --keyring {pkey_path} -v")
-        p.expect_exact("1 of 1 signatures are valid")
+        p.expect_exact("1 of 1 signatures are valid (threshold is: 1).")
         p.expect(EOF)

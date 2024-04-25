@@ -12,7 +12,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o rustup.sh
 RUN sh rustup.sh -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-RUN cargo install openpgp-card-tools@0.9.5 --locked
+RUN cargo install openpgp-card-tools@0.10.1 --locked
 
 RUN useradd --create-home --user-group user
 
