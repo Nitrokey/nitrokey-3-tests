@@ -14,5 +14,5 @@ mypy_path = "stubs"
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --verbose"
-markers = ["virtual"]
-python_files = "tests/*.py"
+markers = ["virtual", "slow"]
+python_files = "tests/default/*.py"

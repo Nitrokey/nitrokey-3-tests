@@ -44,6 +44,9 @@ run-hw: build-docker
 run-hw-report:
 	$(MAKE) run-hw PYTEST_EXTRA="--template=html1/index.html --report report.html --junitxml=report-junit.xml"
 
+run-extra-secrets-tests:
+	$(MAKE) run-docker PYTEST_FLAGS="-v tests/extra/secrets_app_tests.py --durations=0  -m 'not slow' -o log_cli=false -o log_cli_level=debug -W ignore::DeprecationWarning --template=html1/index.html --report report-secrets.html --junitxml=report-junit-secrets.xml"
+
 $(VENV):
 	python3 -m venv "$(VENV)"
 	"$(VENV)"/bin/pip install --requirement requirements.txt

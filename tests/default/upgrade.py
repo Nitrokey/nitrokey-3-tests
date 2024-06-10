@@ -4,7 +4,7 @@
 # Tests in this module may not use the device fixture!
 
 import pytest
-import tests.basic
+import tests.default.basic
 from utils.upgrade import ExecUpgradeTest
 from utils.ssh import SSH_KEY_TYPES
 from typing import Type
@@ -24,26 +24,26 @@ def test(test: Type[ExecUpgradeTest], serial: str, ifs: str, efs: str) -> None:
 
 @pytest.mark.virtual
 def test_fido2(serial: str, ifs: str, efs: str) -> None:
-    tests.basic.TestFido2().run_upgrade(serial, ifs, efs)
+    tests.default.basic.TestFido2().run_upgrade(serial, ifs, efs)
 
 
 @pytest.mark.virtual
 def test_fido2_resident(serial: str, ifs: str, efs: str) -> None:
-    tests.basic.TestFido2Resident().run_upgrade(serial, ifs, efs)
+    tests.default.basic.TestFido2Resident().run_upgrade(serial, ifs, efs)
 
 
 @pytest.mark.virtual
 def test_secrets(serial: str, ifs: str, efs: str) -> None:
-    tests.basic.TestSecrets().run_upgrade(serial, ifs, efs)
+    tests.default.basic.TestSecrets().run_upgrade(serial, ifs, efs)
 
 
 @pytest.mark.virtual
 @pytest.mark.parametrize("type", SSH_KEY_TYPES)
 def test_ssh(serial: str, ifs: str, efs: str, type: str) -> None:
-    tests.basic.TestSsh(type).run_upgrade(serial, ifs, efs)
+    tests.default.basic.TestSsh(type).run_upgrade(serial, ifs, efs)
 
 
 @pytest.mark.virtual
 @pytest.mark.parametrize("type", SSH_KEY_TYPES)
 def test_ssh_resident(serial: str, ifs: str, efs: str, type: str) -> None:
-    tests.basic.TestSshResident(type).run_upgrade(serial, ifs, efs)
+    tests.default.basic.TestSshResident(type).run_upgrade(serial, ifs, efs)
