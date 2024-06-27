@@ -47,6 +47,9 @@ run-hw-report:
 run-extra-secrets-tests:
 	$(MAKE) run-docker PYTEST_FLAGS="-v tests/extra/secrets_app_tests.py --durations=0  -m 'not slow' -o log_cli=false -o log_cli_level=debug -W ignore::DeprecationWarning --template=html1/index.html --report report-secrets.html --junitxml=report-junit-secrets.xml"
 
+run-extra-secrets-tests-slow:
+	$(MAKE) run-docker PYTEST_FLAGS="-v tests/extra/secrets_app_tests.py --durations=0 -o log_cli=false -o log_cli_level=debug -W ignore::DeprecationWarning --template=html1/index.html --report report-secrets-full.html --junitxml=report-junit-secrets-full.xml"
+
 $(VENV):
 	python3 -m venv "$(VENV)"
 	"$(VENV)"/bin/pip install --requirement requirements.txt
