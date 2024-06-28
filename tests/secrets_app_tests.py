@@ -50,6 +50,7 @@ from pynitrokey.nk3.secrets_app import (
 from pynitrokey.trussed.device import App
 
 CREDENTIAL_LABEL_MAX_SIZE = 127
+pytestmark = pytest.mark.full
 
 
 def test_reset(secretsAppResetLogin):

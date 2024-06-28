@@ -65,6 +65,61 @@ def pytest_addoption(parser: Parser) -> None:
         default=CORPUS_PATH,
         help=f"Path to store the generated fuzzing corpus. Default: {CORPUS_PATH}.",
     )
+    parser.addoption(
+        "--model",
+        action="store",
+        default="nk3",
+        help="Select nitrokey model.",
+        choices=("nk3", "nkpk"),
+    )
+    parser.addoption(
+        "--test-suite",
+        action="store",
+        default="basic",
+        help="Select test suite.",
+        choices=("basic", "normal", "full", "slow"),
+    )
+    parser.addoption(
+        "--virtual", action="store_true", default=False,
+        help="Enable virtual tests.",
+    )
+    parser.addoption(
+        "--hil", action="store_true", default=False,
+        help="Disable tests that should not be run on hil."
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    virtual = config.getoption("--virtual")
+    hil = config.getoption("--hil")
+    model = config.getoption("--model")
+    test_suite = config.getoption("--test-suite")
+
+    skip_virtual = pytest.mark.skip(reason="need --virtual option to run")
+    skip_hil = pytest.mark.skip(reason="does not run on hil")
+    skip_nkpk = pytest.mark.skip(reason="does not run on model nkpk")
+    skip_slow = pytest.mark.skip(reason="slow test-suite not selected")
+    skip_full = pytest.mark.skip(reason="full test-suite not selected")
+    skip_normal = pytest.mark.skip(reason="normal test-suite not selected")
+    for item in items:
+        if not virtual:
+            if "virtual" in item.keywords:
+                item.add_marker(skip_virtual)
+        if hil:
+            if "hil_skip" in item.keywords:
+                item.add_marker(skip_hil)
+        if model == "nkpk":
+            if "nkpk_skip" in item.keywords:
+                item.add_marker(skip_nkpk)
+        if test_suite in ["basic", "normal", "full"]:
+            if "slow" in item.keywords:
+                item.add_marker(skip_slow)
+        if test_suite in ["basic", "normal"]:
+            if "full" in item.keywords:
+                item.add_marker(skip_full)
+        if test_suite == "basic":
+            if "basic" not in item.keywords:
+                item.add_marker(skip_normal)
 
 
 def pytest_report_header(config: Config) -> str:
