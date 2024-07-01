@@ -16,13 +16,17 @@ from utils.ssh import (
 from utils.subprocess import check_output
 from utils.upgrade import UpgradeTest
 
+pytestmark = pytest.mark.normal
 
+
+@pytest.mark.basic
 def test_lsusb(device) -> None:
     vid_pid = f"{device.vid:04x}:{device.pid:04x}"
     devices = check_output(["lsusb", "-d", vid_pid]).splitlines()
     assert len(devices) == 1
 
 
+@pytest.mark.basic
 def test_list(device) -> None:
     p = spawn(f"nitropy {device.model.command} list")
     p.expect(f"'{device.model.name}' keys")
@@ -91,6 +95,7 @@ def test_fido2_resident(device):
     TestFido2Resident().run(device)
 
 
+@pytest.mark.basic
 def test_nk3_status(device):
     p = spawn(f"nitropy {device.model.command} status")
     p.expect_exact("Init status")
@@ -168,6 +173,7 @@ class TestSecrets(UpgradeTest):
         self._list_and_get(1)
 
 
+@pytest.mark.nkpk_skip
 def test_secrets(device) -> None:
     TestSecrets().run(device)
 
@@ -196,6 +202,7 @@ class TestSsh(UpgradeTest):
             p.expect(SSH_USER)
 
 
+@pytest.mark.hil_skip
 @pytest.mark.parametrize("type", SSH_KEY_TYPES)
 def test_ssh(device, type) -> None:
     TestSsh(type).run(device)
@@ -249,11 +256,13 @@ class TestSshResident(UpgradeTest):
             os.chdir(pwd)
 
 
+@pytest.mark.hil_skip
 @pytest.mark.parametrize("type", SSH_KEY_TYPES)
 def test_ssh_resident(device, type) -> None:
     TestSshResident(type).run(device)
 
 
+@pytest.mark.nkpk_skip
 def test_opcard_p256(device):
     card_id = f"000F:{device.serial[:8]}"
 

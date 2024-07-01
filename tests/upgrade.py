@@ -4,7 +4,7 @@
 # Tests in this module may not use the device fixture!
 
 import pytest
-import tests.default.basic
+import tests.basic
 from utils.upgrade import ExecUpgradeTest
 from utils.ssh import SSH_KEY_TYPES
 from typing import Type
